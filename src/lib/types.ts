@@ -15,20 +15,26 @@ export interface DbProfile {
 export interface DbGroup {
   id: string;
   name: string;
+  currency: string;
+  default_buy_in: string;
+  settlement_mode: string;
   created_by: string;
   created_at: string;
+  updated_at: string;
 }
 
 export interface DbGroupMember {
   group_id: string;
   user_id: string;
   joined_at: string;
+  created_at: string;
+  updated_at: string;
 }
 
 export interface DbGameSession {
   id: string;
   created_by: string;
-  group_id: string;
+  group_id: string | null;
   session_date: string;
   currency: string;
   default_buy_in: string;
@@ -49,6 +55,7 @@ export interface DbGamePlayer {
   net_result: number;
   settled: boolean;
   created_at: string;
+  updated_at: string;
 }
 /* ── Data Models ── */
 
@@ -58,6 +65,8 @@ export interface PayoutRowData {
   buyIn: string;
   cashOut: string;
   settled: boolean;
+  /** Set after first save; used for update (upsert) on subsequent saves */
+  dbPlayerId?: string;
 }
 
 export interface SidePotPlayerData {

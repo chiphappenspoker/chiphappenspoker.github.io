@@ -3,7 +3,7 @@
 import { useEffect } from 'react';
 import { useSettings } from '@/hooks/useSettings';
 import { ProfilePanel } from './ProfilePanel';
-import { UsualSuspectsPanel } from './UsualSuspectsPanel';
+import { GroupsPanel } from './GroupsPanel';
 import { GameDefaultsPanel } from './GameDefaultsPanel';
 
 export function SettingsModal() {
@@ -42,9 +42,9 @@ export function SettingsModal() {
             <div className="modal-body">
               <p className="muted-text">Choose a settings category.</p>
               <div className="settings-list">
-                <button className="settings-item-btn" onClick={() => setActivePanel('suspects')}>
-                  <span>Usual Suspects</span>
-                  <span className="settings-item-meta">Manage quick-add players</span>
+                <button className="settings-item-btn" onClick={() => setActivePanel('groups')}>
+                  <span>Groups</span>
+                  <span className="settings-item-meta">Create groups, add members (player list per session)</span>
                 </button>
                 <button className="settings-item-btn" onClick={() => setActivePanel('gameDefaults')}>
                   <span>Game Defaults</span>
@@ -75,7 +75,7 @@ export function SettingsModal() {
       )}
 
       {activePanel === 'profile' && <ProfilePanel />}
-      {activePanel === 'suspects' && <UsualSuspectsPanel />}
+      {activePanel === 'groups' && <GroupsPanel />}
       {activePanel === 'gameDefaults' && <GameDefaultsPanel />}
     </>
   );

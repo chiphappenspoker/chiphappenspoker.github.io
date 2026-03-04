@@ -3,7 +3,7 @@ import { useAuth } from '@/lib/auth/AuthProvider';
 
 
 export function SignInModal({ open, onClose }: { open: boolean; onClose: () => void }) {
-  const { signIn, signUp, user, loading } = useAuth();
+  const { signIn, signUp, signInWithGoogle, user, loading } = useAuth();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [mode, setMode] = useState<'signin' | 'signup' | 'reset'>('signin');
@@ -102,6 +102,23 @@ export function SignInModal({ open, onClose }: { open: boolean; onClose: () => v
               ? 'Sign Up'
               : 'Send Reset Email'}
           </button>
+          {(mode === 'signin' || mode === 'signup') && (
+            <button
+              type="button"
+              className="ch-btn"
+              disabled={submitting || loading}
+              onClick={async () => {
+                setSubmitting(true);
+                setError(null);
+                const result = await signInWithGoogle();
+                if (result.error) setError(result.error);
+                setSubmitting(false);
+                if (!result.error) onClose();
+              }}
+            >
+              Sign in with Google
+            </button>
+          )}
         </form>
         <div className="flex flex-col gap-1 mt-2 text-xs">
           <div className="flex justify-between">

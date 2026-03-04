@@ -242,9 +242,6 @@ profiles
   id              UUID PK (= auth.users.id)
   display_name    TEXT
   revtag          TEXT
-  currency        TEXT DEFAULT 'EUR'
-  default_buy_in  TEXT DEFAULT '30'
-  settlement_mode TEXT DEFAULT 'greedy'
   is_paid         BOOLEAN DEFAULT false
   created_at      TIMESTAMPTZ
   updated_at      TIMESTAMPTZ
@@ -252,6 +249,9 @@ profiles
 groups
   id              UUID PK
   name            TEXT
+  currency        TEXT DEFAULT 'EUR'
+  default_buy_in  TEXT DEFAULT '30'
+  settlement_mode TEXT DEFAULT 'greedy'
   created_by      UUID FK → profiles.id
   created_at      TIMESTAMPTZ
 

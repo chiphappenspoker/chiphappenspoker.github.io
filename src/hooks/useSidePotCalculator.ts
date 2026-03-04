@@ -5,12 +5,20 @@ import { SidePotPlayerData, CalculatedPot } from '@/lib/types';
 import { parseNum, fmt, fmtInt } from '@/lib/calc/formatting';
 import { calculateSidePots, calculateWinnings } from '@/lib/calc/sidepot';
 import { encodeSidePotShareData, decodeSidePotShareData } from '@/lib/sharing/sidepot-share';
-import { getLocalStorage, setLocalStorage, removeLocalStorage } from '@/lib/storage/local-storage';
-import { SIDEPOT_STORAGE_KEY, MAX_ROWS } from '@/lib/constants';
+import { getLocalStorage } from '@/lib/storage/local-storage';
+import { PAYOUT_STORAGE_KEY, MAX_ROWS } from '@/lib/constants';
 import { useSettings } from './useSettings';
+import { useGroups } from './useGroups';
 
 export function useSidePotCalculator() {
   const { settings } = useSettings();
+  const { getGroupMembers, loggedIn, groups } = useGroups();
+  const [groupMembers, setGroupMembers] = useState<{ name: string; revtag: string }[]>([]);
+
+  // Use the group selected in the payout calculator for usual suspects (no separate group selection here)
+  const [payoutSelectedGroupId, setPayoutSelectedGroupId] = useState<string | null>(
+    () => getLocalStorage<{ selectedGroupId?: string }>(PAYOUT_STORAGE_KEY)?.selectedGroupId ?? null
+  );
 
   const [rows, setRows] = useState<SidePotPlayerData[]>([]);
   const [initialPot, setInitialPot] = useState('');
@@ -64,17 +72,40 @@ export function useSidePotCalculator() {
     [totalWon, totalBet]
   );
 
-  const allSuspects = useMemo(
-    () => settings.usualSuspects.map((s) => s.name),
-    [settings.usualSuspects]
-  );
+  // Sync payout's selected group when user returns to this tab (e.g. after changing group on Payout page)
+  useEffect(() => {
+    const onFocus = () => {
+      const id = getLocalStorage<{ selectedGroupId?: string }>(PAYOUT_STORAGE_KEY)?.selectedGroupId ?? null;
+      setPayoutSelectedGroupId(id);
+    };
+    window.addEventListener('focus', onFocus);
+    return () => window.removeEventListener('focus', onFocus);
+  }, []);
+
+  useEffect(() => {
+    if (!payoutSelectedGroupId) {
+      setGroupMembers([]);
+      return;
+    }
+    getGroupMembers(payoutSelectedGroupId)
+      .then(setGroupMembers)
+      .catch(() => setGroupMembers([]));
+  }, [payoutSelectedGroupId, getGroupMembers, groups]);
+
+  const allSuspects = useMemo(() => {
+    const raw =
+      payoutSelectedGroupId && loggedIn
+        ? groupMembers.map((s) => s.name)
+        : settings.usualSuspects.map((s) => s.name);
+    return raw.filter((name) => name.trim().length > 0);
+  }, [payoutSelectedGroupId, loggedIn, groupMembers, settings.usualSuspects]);
 
   const availableSuspects = useMemo(() => {
     const usedNames = new Set(rows.map((r) => r.name.trim()).filter(Boolean));
     return allSuspects.filter((name) => !usedNames.has(name));
   }, [allSuspects, rows]);
 
-  // Initialize from share URL, transferred names, or localStorage
+  // Initialize from share URL, transferred names, or default (ad-hoc only: no session persistence)
   useEffect(() => {
     const init = async () => {
       const params = new URLSearchParams(window.location.search);
@@ -102,10 +133,6 @@ export function useSidePotCalculator() {
         }
       }
 
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const saved = getLocalStorage<any>(SIDEPOT_STORAGE_KEY);
-
-      // Transferred names from payout calculator take priority over localStorage
       if (transferredNames) {
         const names = transferredNames.split(',').filter((n) => n.trim());
         if (names.length > 0) {
@@ -116,29 +143,12 @@ export function useSidePotCalculator() {
               bet: '',
             }))
           );
-          // Preserve boards/initialPot from localStorage if available
-          if (saved?.boards) setBoards(Math.max(1, Math.min(2, parseInt(saved.boards) || 1)));
-          if (saved?.initialPot) setInitialPot(saved.initialPot);
           setInitialized(true);
           return;
         }
       }
 
-      if (saved?.rows && Array.isArray(saved.rows)) {
-        if (saved.boards) setBoards(Math.max(1, Math.min(2, parseInt(saved.boards) || 1)));
-        setInitialPot(saved.initialPot || '');
-        setRows(
-          saved.rows.map((r: Record<string, string>) => ({
-            id: generateId(),
-            name: r.name ?? '',
-            bet: r.bet ?? '',
-          }))
-        );
-        setInitialized(true);
-        return;
-      }
-
-      // Default: 2 empty rows
+      // Default: 2 empty rows (ad-hoc, no restore from storage)
       setRows([
         { id: generateId(), name: '', bet: '' },
         { id: generateId(), name: '', bet: '' },
@@ -149,16 +159,6 @@ export function useSidePotCalculator() {
     init();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
-
-  // Save to localStorage on change
-  useEffect(() => {
-    if (!initialized) return;
-    setLocalStorage(SIDEPOT_STORAGE_KEY, {
-      rows: rows.map((r) => ({ name: r.name, bet: r.bet })),
-      boards: String(boards),
-      initialPot,
-    });
-  }, [rows, boards, initialPot, initialized]);
 
   // Methods
   const addRow = useCallback((values?: Partial<SidePotPlayerData>) => {
@@ -203,7 +203,6 @@ export function useSidePotCalculator() {
     setDeleteMode(false);
     setShowSuspects(false);
     setWinnerSelections({});
-    removeLocalStorage(SIDEPOT_STORAGE_KEY);
   }, []);
 
   const toggleDeleteMode = useCallback(() => {

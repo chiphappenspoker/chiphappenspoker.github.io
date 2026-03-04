@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { useSidePotCalculator } from '@/hooks/useSidePotCalculator';
 import { NavMenu } from '@/components/layout/NavMenu';
 import { SidePotRow } from './SidePotRow';
@@ -12,7 +12,15 @@ export function SidePotTable() {
   const calc = useSidePotCalculator();
   const { showToast } = useToast();
 
-  if (!calc.initialized) return null;
+  if (!calc.initialized) {
+    return (
+      <div className="wrap">
+        <div className="card" style={{ padding: '2rem', textAlign: 'center' }}>
+          <p className="muted-text">Loading…</p>
+        </div>
+      </div>
+    );
+  }
 
   const handleShare = async () => {
     try {
@@ -241,9 +249,20 @@ export function SidePotTable() {
 
 function OptionsDropdown({ onShare }: { onShare: () => void }) {
   const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const handler = (e: MouseEvent) => {
+      if (ref.current && !ref.current.contains(e.target as Node)) {
+        setOpen(false);
+      }
+    };
+    document.addEventListener('click', handler);
+    return () => document.removeEventListener('click', handler);
+  }, []);
 
   return (
-    <div style={{ position: 'relative' }}>
+    <div style={{ position: 'relative' }} ref={ref}>
       <button
         className="options-btn"
         aria-label="Options"

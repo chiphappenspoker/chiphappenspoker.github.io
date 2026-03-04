@@ -6,8 +6,9 @@ import { normalizeRevtag, buildRevolutLink } from '@/lib/payments/revolut';
 import { fmt, parseNum } from '@/lib/calc/formatting';
 import { PayoutRowData, Transaction } from '@/lib/types';
 import { normalizeSettingsData, loadSettingsData, saveSettingsData } from '@/lib/storage/settings-store';
-import { DEFAULT_USUAL_SUSPECTS } from '@/lib/constants';
 import { useToast } from '@/hooks/useToast';
+
+const EMPTY_SUSPECTS: { name: string; revtag: string }[] = [];
 
 interface SettlementPanelProps {
   visible: boolean;
@@ -15,6 +16,8 @@ interface SettlementPanelProps {
   settlementMode: 'banker' | 'greedy';
   currency: string;
   transactions: Transaction[];
+  /** When set (e.g. from group members), used for revtag lookups instead of settings */
+  usualSuspectsOverride?: { name: string; revtag: string }[];
 }
 
 interface PaymentItem {
@@ -29,6 +32,7 @@ export function SettlementPanel({
   settlementMode,
   currency,
   transactions,
+  usualSuspectsOverride,
 }: SettlementPanelProps) {
   const { settings, reload } = useSettings();
   const { showToast } = useToast();
@@ -43,11 +47,12 @@ export function SettlementPanel({
     }
     buildPaymentLinks();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [visible, rows, settlementMode, settings]);
+  }, [visible, rows, settlementMode, settings, usualSuspectsOverride]);
 
   const buildPaymentLinks = async () => {
     const raw = await loadSettingsData();
-    const settingsData = normalizeSettingsData(raw, DEFAULT_USUAL_SUSPECTS);
+    const settingsData = normalizeSettingsData(raw, EMPTY_SUSPECTS);
+    const suspectsList = usualSuspectsOverride ?? settingsData.usualSuspects;
     let settingsChanged = false;
     let profileRevtag = normalizeRevtag(settingsData.profile?.revtag);
 
@@ -67,7 +72,7 @@ export function SettlementPanel({
     };
 
     const getSuspectRevtag = (name: string) => {
-      const entry = settingsData.usualSuspects.find(
+      const entry = suspectsList.find(
         (item) => (item.name || '').toLowerCase() === name.toLowerCase()
       );
       if (entry && normalizeRevtag(entry.revtag)) return entry.revtag;
@@ -138,11 +143,12 @@ export function SettlementPanel({
 
   const buildSummaryText = async (): Promise<string> => {
     const raw = await loadSettingsData();
-    const settingsData = normalizeSettingsData(raw, DEFAULT_USUAL_SUSPECTS);
+    const settingsData = normalizeSettingsData(raw, EMPTY_SUSPECTS);
+    const suspectsList = usualSuspectsOverride ?? settingsData.usualSuspects;
     let profileRevtag = normalizeRevtag(settingsData.profile?.revtag);
 
     const getSuspectRevtag = (name: string) => {
-      const entry = settingsData.usualSuspects.find(
+      const entry = suspectsList.find(
         (item) => (item.name || '').toLowerCase() === name.toLowerCase()
       );
       if (entry && normalizeRevtag(entry.revtag)) return entry.revtag;

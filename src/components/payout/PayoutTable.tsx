@@ -1,7 +1,12 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { usePayoutCalculator } from '@/hooks/usePayoutCalculator';
+import { useGroups } from '@/hooks/useGroups';
+import { useAuth } from '@/lib/auth/AuthProvider';
+import { getRepository } from '@/lib/data/sync-repository';
+import { clearQueueEntriesForSession } from '@/lib/sync/sync-queue';
+import { parseNum } from '@/lib/calc/formatting';
 import { NavMenu } from '@/components/layout/NavMenu';
 import { PayoutRow } from './PayoutRow';
 import { SettlementPanel } from './SettlementPanel';
@@ -11,8 +16,111 @@ import { fmt, fmtInt } from '@/lib/calc/formatting';
 export function PayoutTable() {
   const calc = usePayoutCalculator();
   const { showToast } = useToast();
+  const { user } = useAuth();
+  const { groups, loggedIn } = useGroups();
+  const [savingSession, setSavingSession] = useState(false);
+  const [endSessionModalOpen, setEndSessionModalOpen] = useState(false);
 
-  if (!calc.initialized) return null;
+  const openEndSessionModal = () => {
+    // "End session" includes settle flow: lock table + show settlement UI
+    if (!calc.checkboxesVisible) calc.toggleSettle();
+    setEndSessionModalOpen(true);
+  };
+
+  const closeEndSessionModal = () => {
+    setEndSessionModalOpen(false);
+    // exit settle mode when leaving end-session flow
+    if (calc.checkboxesVisible) calc.toggleSettle();
+  };
+
+  const handleClear = async () => {
+    if (calc.currentSessionId) await clearQueueEntriesForSession(calc.currentSessionId);
+    calc.clearTable();
+  };
+
+  const handleSaveSession = async () => {
+    if (!user?.id || calc.rows.length === 0) return;
+    setSavingSession(true);
+    try {
+      const repo = getRepository(true);
+      const now = new Date().toISOString();
+      const isNewSession = calc.currentSessionId == null;
+      const sessionId = calc.currentSessionId ?? crypto.randomUUID();
+      const session = {
+        id: sessionId,
+        created_by: user.id,
+        group_id: calc.selectedGroupId,
+        session_date: new Date().toISOString().slice(0, 10),
+        currency: calc.currency,
+        default_buy_in: calc.buyIn,
+        settlement_mode: calc.settlementMode,
+        status: 'settled' as const,
+        share_code: '',
+        created_at: now,
+        updated_at: now,
+      };
+      await repo.saveGameSession(session);
+
+      const nameToUserId = new Map<string, string>();
+      if (calc.selectedGroupId) {
+        const members = await repo.getGroupMembersWithIds(calc.selectedGroupId);
+        for (const m of members) {
+          if (m.name?.trim()) nameToUserId.set(m.name.trim().toLowerCase(), m.user_id);
+        }
+      }
+
+      const playerIds: (string | undefined)[] = [];
+      for (const row of calc.rows) {
+        const name = row.name.trim();
+        const playerId = name ? (row.dbPlayerId ?? crypto.randomUUID()) : undefined;
+        playerIds.push(playerId);
+        if (playerId !== undefined) {
+          const buyIn = parseNum(row.buyIn);
+          const cashOut = parseNum(row.cashOut);
+          const userId = nameToUserId.get(name.toLowerCase()) ?? null;
+          await repo.saveGamePlayer({
+            id: playerId,
+            session_id: sessionId,
+            user_id: userId,
+            player_name: name,
+            buy_in: buyIn,
+            cash_out: cashOut,
+            net_result: cashOut - buyIn,
+            settled: row.settled,
+            created_at: now,
+            updated_at: now,
+          });
+        }
+      }
+
+      if (!isNewSession) {
+        const keptIds = new Set(playerIds.filter((id): id is string => id != null));
+        const existing = await repo.getGamePlayers(sessionId);
+        for (const p of existing) {
+          if (!keptIds.has(p.id)) {
+            await repo.deleteGamePlayer(p.id, sessionId);
+          }
+        }
+      }
+
+      calc.setSavedSession(sessionId, playerIds);
+      showToast(isNewSession ? 'Session saved' : 'Session updated');
+    } catch {
+      showToast('Failed to save session');
+    } finally {
+      setSavingSession(false);
+    }
+  };
+
+  if (!calc.initialized) {
+    return (
+      <div className="wrap">
+        <div className="card" style={{ padding: '2rem', textAlign: 'center' }}>
+          <p className="muted-text">Loading…</p>
+        </div>
+      </div>
+    );
+  }
 
   const handleShare = async () => {
     try {
@@ -119,11 +227,32 @@ export function PayoutTable() {
                         className="btn btn-secondary"
                         type="button"
                         disabled={calc.tableLocked}
-                        onClick={calc.clearTable}
+                        onClick={handleClear}
                       >
                         🧹 Clear
                       </button>
                       <div className="spacer" />
+                      {loggedIn && (
+                        <div className="buyin-container">
+                          <label className="buyin-label" htmlFor="groupSelectPayout">
+                            Group
+                          </label>
+                          <select
+                            id="groupSelectPayout"
+                            className="input-field buyin-input"
+                            value={calc.selectedGroupId ?? ''}
+                            onChange={(e) => calc.setSelectedGroupId(e.target.value || null)}
+                            disabled={calc.tableLocked}
+                          >
+                            <option value="">No group</option>
+                            {groups.map((g) => (
+                              <option key={g.id} value={g.id}>
+                                {g.name}
+                              </option>
+                            ))}
+                          </select>
+                        </div>
+                      )}
                       <div className="buyin-container">
                         <label className="buyin-label" htmlFor="buyInInput">
                           Buy-In
@@ -199,24 +328,17 @@ export function PayoutTable() {
             >
               👥 Usual Suspects
             </button>
-            <button
-              className="btn btn-secondary btn-wide"
-              type="button"
-              onClick={calc.toggleSettle}
-              style={{ opacity: 1 }}
-            >
-              ✔ Settle
-            </button>
+            {loggedIn && (
+              <button
+                className="btn btn-secondary btn-wide"
+                type="button"
+                disabled={calc.tableLocked || calc.rows.length === 0}
+                onClick={openEndSessionModal}
+              >
+                🏁 End session
+              </button>
+            )}
           </div>
-
-          {/* Settlement Panel */}
-          <SettlementPanel
-            visible={calc.checkboxesVisible}
-            rows={calc.rows}
-            settlementMode={calc.settlementMode}
-            currency={calc.currency}
-            transactions={calc.transactions}
-          />
 
           {/* Usual Suspects */}
           {calc.showSuspects && (
@@ -234,6 +356,67 @@ export function PayoutTable() {
           )}
         </div>
       </div>
+
+      {/* End session confirmation modal */}
+      {loggedIn && endSessionModalOpen && (
+        <div className="modal active" role="dialog" aria-modal="true" aria-labelledby="end-session-title">
+          <div className="modal-overlay" onClick={closeEndSessionModal} />
+          <div className="modal-content" role="document">
+            <div className="modal-header">
+              <h2 id="end-session-title" className="modal-title">End session</h2>
+              <button
+                type="button"
+                className="modal-close"
+                onClick={closeEndSessionModal}
+                aria-label="Close"
+              >
+                ✕
+              </button>
+            </div>
+            <div className="modal-body">
+              <p className="muted-text" style={{ marginBottom: '1rem' }}>
+                {calc.rows.filter((r) => r.name.trim()).length} players · In: {calc.fmtInt(calc.totalIn)} · Out: {calc.fmt(calc.totalOut)}
+                {calc.isBalanced ? ' · Balanced' : ' · Unbalanced'}
+              </p>
+
+              <SettlementPanel
+                visible={endSessionModalOpen}
+                rows={calc.rows}
+                settlementMode={calc.settlementMode}
+                currency={calc.currency}
+                transactions={calc.transactions}
+                usualSuspectsOverride={calc.usualSuspectsForSettlement}
+              />
+
+              <div style={{ display: 'flex', gap: '0.75rem', justifyContent: 'flex-end', flexWrap: 'wrap' }}>
+                <button
+                  type="button"
+                  className="btn btn-secondary"
+                  disabled={savingSession}
+                  onClick={closeEndSessionModal}
+                >
+                  Discard
+                </button>
+                <button
+                  type="button"
+                  className="btn btn-primary"
+                  disabled={savingSession}
+                  onClick={async () => {
+                    try {
+                      await handleSaveSession();
+                      closeEndSessionModal();
+                    } catch {
+                      /* toast already shown */
+                    }
+                  }}
+                >
+                  {savingSession ? 'Saving…' : 'Save'}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -242,9 +425,20 @@ export function PayoutTable() {
 
 function OptionsDropdown({ onShare }: { onShare: () => void }) {
   const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const handler = (e: MouseEvent) => {
+      if (ref.current && !ref.current.contains(e.target as Node)) {
+        setOpen(false);
+      }
+    };
+    document.addEventListener('click', handler);
+    return () => document.removeEventListener('click', handler);
+  }, []);
 
   return (
-    <div style={{ position: 'relative' }}>
+    <div style={{ position: 'relative' }} ref={ref}>
       <button
         className="options-btn"
         aria-label="Options"
