@@ -1,5 +1,5 @@
 import { createContext, useContext, useEffect, useState, ReactNode } from 'react';
-import { supabase } from '../supabase/client';
+import { supabase, isSupabasePlaceholder } from '../supabase/client';
 import { startSyncEngine, stopSyncEngine } from '../sync/sync-engine';
 import { migrateLocalToCloud, needsMigration } from './migrate-local-to-cloud';
 
@@ -69,17 +69,23 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }, [user?.id]);
 
+  const wrapAuthError = (message: string): string => {
+    if (isSupabasePlaceholder && (message === 'Failed to fetch' || message.includes('fetch')))
+      return 'Sign-in is not configured for this deployment. The build must have NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY set (e.g. GitHub Actions secrets).';
+    return message;
+  };
+
   const signIn = async (email: string, password: string) => {
     const { error } = await supabase.auth.signInWithPassword({ email, password });
-    return error ? { error: error.message } : {};
+    return error ? { error: wrapAuthError(error.message) } : {};
   };
   const signUp = async (email: string, password: string) => {
     const { error } = await supabase.auth.signUp({ email, password });
-    return error ? { error: error.message } : {};
+    return error ? { error: wrapAuthError(error.message) } : {};
   };
   const signInWithGoogle = async () => {
     const { error } = await supabase.auth.signInWithOAuth({ provider: 'google' });
-    return error ? { error: error.message } : {};
+    return error ? { error: wrapAuthError(error.message) } : {};
   };
   const signOut = async () => {
     await supabase.auth.signOut();
