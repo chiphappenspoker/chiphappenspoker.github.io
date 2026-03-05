@@ -4,16 +4,24 @@ import { startSyncEngine, stopSyncEngine } from '../sync/sync-engine';
 import { migrateLocalToCloud, needsMigration } from './migrate-local-to-cloud';
 
 async function ensureProfile(userId: string, metadata: { full_name?: string; name?: string; email?: string }): Promise<void> {
+  // Only create a profile if one does not already exist to avoid overwriting
+  // user-customized data (name, revtag, etc.) on every sign-in.
+  const { data: existing, error } = await supabase
+    .from('profiles')
+    .select('id')
+    .eq('id', userId)
+    .maybeSingle();
+
+  if (error || existing) return;
+
   const displayName = metadata?.full_name ?? metadata?.name ?? (metadata?.email ? metadata.email.split('@')[0] : '') ?? '';
-  await supabase.from('profiles').upsert(
-    {
-      id: userId,
-      display_name: displayName,
-      revtag: '',
-      updated_at: new Date().toISOString(),
-    },
-    { onConflict: 'id' }
-  );
+
+  await supabase.from('profiles').insert({
+    id: userId,
+    display_name: displayName,
+    revtag: '',
+    updated_at: new Date().toISOString(),
+  });
 }
 
 export interface AuthUser {
