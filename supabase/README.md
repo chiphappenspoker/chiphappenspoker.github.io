@@ -41,6 +41,9 @@ This runs, in order:
 
 1. **20260228000000_initial_schema.sql** – tables: `profiles`, `groups`, `group_members`, `game_sessions`, `game_players`; `updated_at` triggers (no auth trigger; profiles are created from the client).
 2. **20260228000001_rls.sql** – enables RLS and creates all policies (including `profiles_insert_own` for client-side profile creation).
+3. **20260228100000_fix_rls_recursion.sql** – SECURITY DEFINER helpers for groups/group_members.
+4. **20260301000000_add_updated_at_columns.sql** – `updated_at` columns.
+5. **20260301000001_profiles_select_group_members.sql** – allows reading profiles of users who share a group (required so group creators see all members in the UI; without it, only your own profile is visible and invited members appear missing on PWA/production).
 
 ## Reset remote database (optional)
 
@@ -72,3 +75,10 @@ The default Supabase signup confirmation email does not mention ChipHappens. To 
   - **Body:** Copy the HTML from `supabase/templates/confirmation.html` (keep the variables `{{ .ConfirmationURL }}`, etc.). Save.
 
 Other templates (invite, recovery, magic link, etc.) can be customized the same way in `config.toml` and Dashboard.
+
+## Troubleshooting: group members visible locally but not on PWA
+
+If the group creator sees invited members on the local/dev site but not in the deployed PWA (and the user exists in `group_members` and `profiles` in Supabase):
+
+1. **Apply all migrations on the hosted project** the PWA uses. The policy that lets you read other members’ profiles is in **20260301000001_profiles_select_group_members.sql**. Without it, RLS only allows reading your own profile, so the member list shows only you. From the project root: `npm run supabase:db:push` (with the project linked to the same Supabase project as the PWA).
+2. **Reload the PWA** after applying migrations (pull-to-refresh or close and reopen the app) so the member list is refetched.

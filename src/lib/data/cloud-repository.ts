@@ -167,6 +167,13 @@ export const cloudRepository: Repository = {
       .from('profiles')
       .select('id, display_name, revtag')
       .in('id', members.map((m) => m.user_id));
+    const count = (profiles ?? []).length;
+    if (count < members.length && typeof process !== 'undefined' && process.env.NODE_ENV === 'development') {
+      console.warn(
+        `[ChipHappens] group_members has ${members.length} member(s) but profiles returned ${count}. ` +
+          'If some members are missing in the UI, ensure migration 20260301000001_profiles_select_group_members.sql is applied on your Supabase project (run: npm run supabase:db:push).'
+      );
+    }
     return (profiles ?? []).map((p) => ({
       name: p.display_name ?? '',
       revtag: p.revtag ?? '',
