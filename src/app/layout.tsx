@@ -1,7 +1,6 @@
 import type { Metadata, Viewport } from 'next';
 import { Montserrat } from 'next/font/google';
 import './globals.css';
-import { Providers } from '@/components/layout/Providers';
 import { ServiceWorkerRegistrar } from '@/components/layout/ServiceWorkerRegistrar';
 
 const montserrat = Montserrat({
@@ -43,7 +42,7 @@ export default function RootLayout({
     <html lang="en" className={montserrat.variable}>
       <body>
         <ServiceWorkerRegistrar />
-        <Providers>{children}</Providers>
+        {children}
       </body>
     </html>
   );
