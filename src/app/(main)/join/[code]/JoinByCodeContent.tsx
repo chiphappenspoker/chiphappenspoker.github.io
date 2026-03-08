@@ -41,33 +41,35 @@ export function JoinByCodeContent({ code }: { code: string }) {
 
   if (authLoading || (loading && !invalid)) {
     return (
-      <div className="app-shell">
-        <main className="app-main max-w-md mx-auto text-center py-10 px-4">
+      <div className="wrap">
+        <div className="card" style={{ padding: '2rem', textAlign: 'center' }}>
           <p className="muted-text">Loading…</p>
-        </main>
+        </div>
       </div>
     );
   }
 
   if (invalid) {
     return (
-      <div className="app-shell">
-        <main className="app-main max-w-md mx-auto text-center py-10 px-4">
-          <h1 className="text-xl font-semibold mb-2">Invalid invitation</h1>
-          <p className="muted-text mb-4">This invitation link is invalid or has expired. Ask the group owner for a new link.</p>
-          <Link href="/" className="btn btn-primary">
-            Go to calculator
-          </Link>
-        </main>
+      <div className="wrap">
+        <h1 className="page-title">Invalid invitation</h1>
+        <div className="card">
+          <div className="card-content text-center">
+            <p className="muted-text mb-4">This invitation link is invalid or has expired. Ask the group owner for a new link.</p>
+            <Link href="/" className="btn btn-primary">
+              Go to calculator
+            </Link>
+          </div>
+        </div>
       </div>
     );
   }
 
   return (
-    <div className="app-shell">
-      <main className="app-main max-w-md mx-auto text-center py-10 px-4">
+    <div className="wrap">
+      <div className="card" style={{ padding: '2rem', textAlign: 'center' }}>
         <p className="muted-text">Redirecting…</p>
-      </main>
+      </div>
     </div>
   );
 }

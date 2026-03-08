@@ -127,8 +127,8 @@ export async function getGroupLeaderboard(
   toDate?: string
 ): Promise<LeaderboardRow[]> {
   const { data, error } = await supabase.rpc('get_group_leaderboard', {
-    p_group_id: groupId,
     p_from_date: fromDate || null,
+    p_group_id: groupId,
     p_to_date: toDate || null,
   });
   if (error) throw error;

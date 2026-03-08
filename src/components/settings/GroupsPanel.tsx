@@ -387,7 +387,7 @@ export function GroupsPanel() {
                         {recentSessions.map((s) => (
                           <li key={s.id} className="flex items-center justify-between gap-2 min-h-[36px] py-0 px-2 rounded-md bg-[rgba(255,255,255,0.04)] border border-[var(--color-outline)] text-sm leading-tight">
                             <span className="truncate min-w-0">{formatSessionDate(s.session_date)}</span>
-                            <Link href={`${BASE_PATH}/history/${s.id}`} className="shrink-0 text-sm text-[var(--color-link)] hover:underline">
+                            <Link href={`${BASE_PATH}/history?sessionId=${s.id}`} className="shrink-0 text-sm text-[var(--color-link)] hover:underline">
                               View
                             </Link>
                           </li>
@@ -504,7 +504,7 @@ export function GroupsPanel() {
                         {recentSessions.map((s) => (
                           <li key={s.id} className="flex items-center justify-between gap-2 min-h-[36px] py-0 px-2 rounded-md bg-[rgba(255,255,255,0.04)] border border-[var(--color-outline)] text-sm leading-tight">
                             <span className="truncate min-w-0">{formatSessionDate(s.session_date)}</span>
-                            <Link href={`${BASE_PATH}/history/${s.id}`} className="shrink-0 text-sm text-[var(--color-link)] hover:underline">
+                            <Link href={`${BASE_PATH}/history?sessionId=${s.id}`} className="shrink-0 text-sm text-[var(--color-link)] hover:underline">
                               View
                             </Link>
                           </li>

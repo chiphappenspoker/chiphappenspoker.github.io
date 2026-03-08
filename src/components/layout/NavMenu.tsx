@@ -6,11 +6,11 @@ import { useSettings } from '@/hooks/useSettings';
 import { useSelectGroupModal } from '@/hooks/useSelectGroupModal';
 
 interface NavMenuProps {
-  activePage: 'payout' | 'sidepot';
+  activePage?: 'payout' | 'sidepot' | 'history' | 'leaderboard' | 'stats';
   playerNames?: string[];
 }
 
-export function NavMenu({ activePage, playerNames = [] }: NavMenuProps) {
+export function NavMenu({ activePage = 'payout', playerNames = [] }: NavMenuProps) {
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
   const { openSettingsModal } = useSettings();

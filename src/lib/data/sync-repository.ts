@@ -24,9 +24,22 @@ const syncRepository: Repository = {
     return localRepository.getGameSessions();
   },
   async getGameSessionsForUser(filters?: GameSessionsForUserFilters) {
-    return cloudRepository.getGameSessionsForUser(filters);
+    const [localList, cloudList] = await Promise.all([
+      localRepository.getGameSessionsForUser(filters),
+      cloudRepository.getGameSessionsForUser(filters),
+    ]);
+    const byId = new Map<string, DbGameSession>();
+    for (const s of [...localList, ...cloudList]) byId.set(s.id, s);
+    let list = Array.from(byId.values());
+    if (filters?.groupId) list = list.filter((s) => s.group_id === filters.groupId);
+    if (filters?.fromDate) list = list.filter((s) => s.session_date >= filters!.fromDate!);
+    if (filters?.toDate) list = list.filter((s) => s.session_date <= filters!.toDate!);
+    list.sort((a, b) => (b.created_at > a.created_at ? 1 : b.created_at < a.created_at ? -1 : 0));
+    return list;
   },
   async getGameSession(sessionId: string) {
+    const local = await localRepository.getGameSession(sessionId);
+    if (local) return local;
     return cloudRepository.getGameSession(sessionId);
   },
   async saveGameSession(session: DbGameSession) {
@@ -35,7 +48,9 @@ const syncRepository: Repository = {
     if (isOnline()) await cloudRepository.saveGameSession(session);
   },
   async getGamePlayers(sessionId: string) {
-    return localRepository.getGamePlayers(sessionId);
+    const local = await localRepository.getGamePlayers(sessionId);
+    if (local.length > 0) return local;
+    return cloudRepository.getGamePlayers(sessionId);
   },
   async saveGamePlayer(player: DbGamePlayer) {
     await localRepository.saveGamePlayer(player);

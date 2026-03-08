@@ -46,6 +46,7 @@ UX RULES:
 - Buttons should clearly indicate primary actions (e.g. Calculate, Reset)
 - Layouts should work well on small screens and one-handed use
 - Avoid unnecessary modals or interruptions
+- Any newly generated page should have the similar look as the Payout Calculator page.
 
 OUTPUT EXPECTATIONS:
 - Produce clean HTML using Tailwind classes

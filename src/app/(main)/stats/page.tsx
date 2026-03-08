@@ -9,6 +9,7 @@ import { useEffect, useState } from 'react';
 import type { PlayerStats } from '@/lib/types';
 import type { CumulativePnlPoint } from '@/lib/data/stats';
 import { PnLChart } from '@/components/history/PnLChart';
+import { NavMenu } from '@/components/layout/NavMenu';
 
 type Period = 'all' | '30' | '90' | 'year';
 
@@ -134,24 +135,26 @@ export default function StatsPage() {
 
   if (authLoading) {
     return (
-      <div className="app-shell">
-        <main className="app-main max-w-md mx-auto text-center py-10 px-4">
+      <div className="wrap">
+        <div className="card" style={{ padding: '2rem', textAlign: 'center' }}>
           <p className="muted-text">Loading…</p>
-        </main>
+        </div>
       </div>
     );
   }
 
   if (!user) {
     return (
-      <div className="app-shell">
-        <main className="app-main max-w-md mx-auto text-center py-10 px-4">
-          <h1 className="text-xl font-semibold mb-2">Stats</h1>
-          <p className="muted-text mb-4">Sign in to see your stats.</p>
-          <Link href="/" className="btn btn-primary">
-            Go home
-          </Link>
-        </main>
+      <div className="wrap">
+        <h1 className="page-title">Your stats</h1>
+        <div className="card">
+          <div className="card-content text-center">
+            <p className="muted-text mb-4">Sign in to see your stats.</p>
+            <Link href="/" className="btn btn-primary">
+              Go home
+            </Link>
+          </div>
+        </div>
       </div>
     );
   }
@@ -159,91 +162,102 @@ export default function StatsPage() {
   const combined = combineStats(rows);
 
   return (
-    <div className="app-shell">
-      <main className="app-main max-w-md mx-auto py-10 px-4">
-        <h1 className="text-xl font-semibold mb-4">Your stats</h1>
-
-        <div className="space-y-3 mb-6">
-          <label className="settings-field block">
-            <span className="settings-label">Group</span>
-            <select
-              className="input-field w-full"
-              value={groupId === '' ? 'all' : groupId}
-              onChange={(e) => setGroupId(e.target.value === 'all' ? '' : e.target.value)}
-            >
-              <option value="all">All</option>
-              {groups.map((g) => (
-                <option key={g.id} value={g.id}>
-                  {g.name}
-                </option>
-              ))}
-            </select>
-          </label>
-          <label className="settings-field block">
-            <span className="settings-label">Time period</span>
-            <select
-              className="input-field w-full"
-              value={period}
-              onChange={(e) => setPeriod(e.target.value as Period)}
-            >
-              <option value="all">All time</option>
-              <option value="30">Last 30 days</option>
-              <option value="90">Last 90 days</option>
-              <option value="year">This year</option>
-            </select>
-          </label>
+    <div className="wrap">
+      <h1 className="page-title">Your stats</h1>
+      <div className="card">
+        <div className="toolbar">
+          <NavMenu activePage="stats" />
+          <span className="toolbar-icon" aria-hidden="true" title="Poker">
+            <svg width="22" height="22" viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg" role="img">
+              <title>Spade</title>
+              <path fill="#d4a832" d="M32 6C20 18 8 26 8 36c0 6 5 11 11 11 4 0 8-2 10-5-1 5-3 9-8 12h22c-5-3-7-7-8-12 2 3 6 5 10 5 6 0 11-5 11-11 0-10-12-18-24-30z" />
+            </svg>
+          </span>
+          <span className="spacer" />
         </div>
+        <div className="card-content">
+          <div className="space-y-3 mb-6">
+            <label className="settings-field block">
+              <span className="settings-label">Group</span>
+              <select
+                className="input-field w-full"
+                value={groupId === '' ? 'all' : groupId}
+                onChange={(e) => setGroupId(e.target.value === 'all' ? '' : e.target.value)}
+              >
+                <option value="all">All</option>
+                {groups.map((g) => (
+                  <option key={g.id} value={g.id}>
+                    {g.name}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label className="settings-field block">
+              <span className="settings-label">Time period</span>
+              <select
+                className="input-field w-full"
+                value={period}
+                onChange={(e) => setPeriod(e.target.value as Period)}
+              >
+                <option value="all">All time</option>
+                <option value="30">Last 30 days</option>
+                <option value="90">Last 90 days</option>
+                <option value="year">This year</option>
+              </select>
+            </label>
+          </div>
 
-        <section className="mb-6">
-          <h2 className="text-sm font-semibold text-[var(--color-muted)] mb-2">Cumulative profit over time</h2>
-          {chartLoading && pnlData.length === 0 ? (
-            <p className="muted-text">Loading chart…</p>
+          <section className="mb-6">
+            <h2 className="text-sm font-semibold muted-text mb-2">Cumulative profit over time</h2>
+            {chartLoading && pnlData.length === 0 ? (
+              <p className="muted-text">Loading chart…</p>
+            ) : (
+              <PnLChart data={pnlData} />
+            )}
+          </section>
+
+          {loading && rows.length === 0 ? (
+            <p className="muted-text">Loading…</p>
+          ) : combined.total_sessions === 0 ? (
+            <p className="muted-text">No sessions in this period.</p>
           ) : (
-            <PnLChart data={pnlData} />
-          )}
-        </section>
-
-        {loading && rows.length === 0 ? (
-          <p className="muted-text">Loading…</p>
-        ) : combined.total_sessions === 0 ? (
-          <p className="muted-text">No sessions in this period.</p>
-        ) : (
-          <div className="space-y-3">
-            <div className="border border-neutral-600 rounded-lg p-4 space-y-2">
-              <div className="flex justify-between">
-                <span className="muted-text">Sessions</span>
-                <span>{combined.total_sessions}</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="muted-text">Total profit</span>
-                <span>{fmt(combined.total_profit)}</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="muted-text">Biggest win</span>
-                <span>{fmt(combined.biggest_win)}</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="muted-text">Biggest loss</span>
-                <span>{fmt(combined.biggest_loss)}</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="muted-text">Wins / Losses</span>
-                <span>
-                  {combined.win_count} / {combined.loss_count}
-                </span>
-              </div>
-              <div className="flex justify-between">
-                <span className="muted-text">Avg profit per session</span>
-                <span>{fmt(combined.avg_profit)}</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="muted-text">Last played</span>
-                <span>{combined.last_played ?? '—'}</span>
+            <div className="space-y-3">
+              <div className="settings-list" style={{ border: '1px solid var(--color-outline)', borderRadius: 'var(--radius-lg)', padding: 'var(--space-md)' }}>
+                <div className="flex justify-between settings-field">
+                  <span className="muted-text">Sessions</span>
+                  <span>{combined.total_sessions}</span>
+                </div>
+                <div className="flex justify-between settings-field">
+                  <span className="muted-text">Total profit</span>
+                  <span>{fmt(combined.total_profit)}</span>
+                </div>
+                <div className="flex justify-between settings-field">
+                  <span className="muted-text">Biggest win</span>
+                  <span>{fmt(combined.biggest_win)}</span>
+                </div>
+                <div className="flex justify-between settings-field">
+                  <span className="muted-text">Biggest loss</span>
+                  <span>{fmt(combined.biggest_loss)}</span>
+                </div>
+                <div className="flex justify-between settings-field">
+                  <span className="muted-text">Wins / Losses</span>
+                  <span>
+                    {combined.win_count} / {combined.loss_count}
+                  </span>
+                </div>
+                <div className="flex justify-between settings-field">
+                  <span className="muted-text">Avg profit per session</span>
+                  <span>{fmt(combined.avg_profit)}</span>
+                </div>
+                <div className="flex justify-between settings-field">
+                  <span className="muted-text">Last played</span>
+                  <span>{combined.last_played ?? '—'}</span>
+                </div>
               </div>
             </div>
-          </div>
-        )}
-      </main>
+          )}
+        </div>
+      </div>
     </div>
   );
 }
