@@ -1,5 +1,6 @@
 'use client';
 
+import { Suspense } from 'react';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 import { useAuth } from '@/lib/auth/AuthProvider';
@@ -17,7 +18,7 @@ function formatSessionDate(iso: string): string {
   }
 }
 
-export default function HistoryPage() {
+function HistoryPageContent() {
   const searchParams = useSearchParams();
   const sessionId = searchParams.get('sessionId') ?? '';
   const { user, loading: authLoading } = useAuth();
@@ -148,5 +149,21 @@ export default function HistoryPage() {
         </div>
       </div>
     </div>
+  );
+}
+
+export default function HistoryPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="wrap">
+          <div className="card" style={{ padding: '2rem', textAlign: 'center' }}>
+            <p className="muted-text">Loading…</p>
+          </div>
+        </div>
+      }
+    >
+      <HistoryPageContent />
+    </Suspense>
   );
 }
