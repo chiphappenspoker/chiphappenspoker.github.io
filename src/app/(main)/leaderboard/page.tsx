@@ -6,7 +6,7 @@ import { useGroups } from '@/hooks/useGroups';
 import { getGroupLeaderboard } from '@/lib/data/stats';
 import { fmt } from '@/lib/calc/formatting';
 import { formatLeaderboardRank } from '@/lib/calc/leaderboard-rank';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import type { LeaderboardRow } from '@/lib/types';
 import { NavMenu } from '@/components/layout/NavMenu';
 import { getLocalStorage, setLocalStorage } from '@/lib/storage/local-storage';
@@ -93,6 +93,7 @@ export default function LeaderboardPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [categoryIndex, setCategoryIndex] = useState(0);
+  const touchStartXRef = useRef<number>(0);
 
   const { fromDate, toDate } = getDateRange(period);
 
@@ -264,7 +265,19 @@ export default function LeaderboardPage() {
                   />
                 ))}
               </div>
-              <div className="leaderboard-nav-row">
+              <div
+                className="leaderboard-nav-row"
+                onTouchStart={(e) => {
+                  touchStartXRef.current = e.touches[0]?.clientX ?? 0;
+                }}
+                onTouchEnd={(e) => {
+                  const startX = touchStartXRef.current;
+                  const endX = e.changedTouches[0]?.clientX ?? startX;
+                  const deltaX = endX - startX;
+                  if (deltaX < -50) setCategoryIndex((i) => (i + 1) % 5);
+                  if (deltaX > 50) setCategoryIndex((i) => (i - 1 + 5) % 5);
+                }}
+              >
                 <button
                   type="button"
                   className="leaderboard-arrow"
