@@ -9,10 +9,10 @@ import { useEffect, useState } from 'react';
 import type { DbGameSession, DbGamePlayer } from '@/lib/types';
 import { NavMenu } from '@/components/layout/NavMenu';
 
-function formatSessionDate(iso: string): string {
+function formatSessionDateTime(iso: string): string {
   try {
     const d = new Date(iso);
-    return d.toLocaleDateString(undefined, { dateStyle: 'medium' });
+    return d.toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' });
   } catch {
     return iso;
   }
@@ -108,8 +108,8 @@ export function SessionDetailContent({ sessionId }: { sessionId: string }) {
         <div className="card-content">
           <div className="settings-list mb-6">
             <div className="settings-field">
-              <span className="settings-label">Date</span>
-              <span>{formatSessionDate(session.session_date)}</span>
+              <span className="settings-label">Date & time</span>
+              <span>{formatSessionDateTime(session.created_at || `${session.session_date}T00:00:00`)}</span>
             </div>
             <div className="settings-field">
               <span className="settings-label">Group</span>
@@ -119,14 +119,6 @@ export function SessionDetailContent({ sessionId }: { sessionId: string }) {
               <span className="settings-label">Currency</span>
               <span>{session.currency}</span>
             </div>
-            <div className="settings-field">
-              <span className="settings-label">Default buy-in</span>
-              <span>{session.default_buy_in}</span>
-            </div>
-            <div className="settings-field">
-              <span className="settings-label">Settlement mode</span>
-              <span>{session.settlement_mode === 'greedy' ? 'Greedy' : 'Banker'}</span>
-            </div>
           </div>
 
           <h2 className="text-lg font-semibold mb-3">Players</h2>
@@ -134,24 +126,28 @@ export function SessionDetailContent({ sessionId }: { sessionId: string }) {
             <p className="muted-text">No players in this session.</p>
           ) : (
             <div className="table-wrap">
-              <table className="page-payout-table">
+              <table className="page-payout-table session-detail-table">
+                <colgroup>
+                  <col />
+                  <col />
+                  <col />
+                  <col />
+                </colgroup>
                 <thead>
                   <tr>
-                    <th>Player</th>
-                    <th className="text-right">Buy-in</th>
-                    <th className="text-right">Cash out</th>
-                    <th className="text-right">Net</th>
-                    <th>Settled</th>
+                    <th className="text-left">Player</th>
+                    <th className="text-right font-mono tabular-nums">Buy-in</th>
+                    <th className="text-right font-mono tabular-nums">Cash out</th>
+                    <th className="text-right font-mono tabular-nums">Net</th>
                   </tr>
                 </thead>
                 <tbody>
                   {players.map((p) => (
                     <tr key={p.id}>
-                      <td>{p.player_name}</td>
+                      <td className="text-left">{p.player_name}</td>
                       <td className="text-right font-mono tabular-nums">{fmt(p.buy_in)}</td>
                       <td className="text-right font-mono tabular-nums">{fmt(p.cash_out)}</td>
                       <td className="text-right font-mono tabular-nums">{fmt(p.net_result)}</td>
-                      <td>{p.settled ? 'Yes' : 'No'}</td>
                     </tr>
                   ))}
                 </tbody>

@@ -26,6 +26,15 @@ function formatSessionDate(iso: string): string {
   }
 }
 
+function formatSessionDateTime(iso: string): string {
+  try {
+    const d = new Date(iso);
+    return d.toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' });
+  } catch {
+    return iso;
+  }
+}
+
 export function GroupsPanel() {
   const { closeSettingsModal, setActivePanel, initialGroupsView, setInitialGroupsView } = useSettings();
   const { user } = useAuth();
@@ -386,7 +395,7 @@ export function GroupsPanel() {
                       <ul className="list-none p-0 m-0 mb-3 space-y-1">
                         {recentSessions.map((s) => (
                           <li key={s.id} className="flex items-center justify-between gap-2 min-h-[36px] py-0 px-2 rounded-md bg-[rgba(255,255,255,0.04)] border border-[var(--color-outline)] text-sm leading-tight">
-                            <span className="truncate min-w-0">{formatSessionDate(s.session_date)}</span>
+                            <span className="truncate min-w-0">{formatSessionDateTime(s.created_at || `${s.session_date}T00:00:00`)}</span>
                             <Link href={`${BASE_PATH}/history?sessionId=${s.id}`} className="shrink-0 text-sm text-[var(--color-link)] hover:underline">
                               View
                             </Link>
@@ -503,7 +512,7 @@ export function GroupsPanel() {
                       <ul className="list-none p-0 m-0 mb-3 space-y-1">
                         {recentSessions.map((s) => (
                           <li key={s.id} className="flex items-center justify-between gap-2 min-h-[36px] py-0 px-2 rounded-md bg-[rgba(255,255,255,0.04)] border border-[var(--color-outline)] text-sm leading-tight">
-                            <span className="truncate min-w-0">{formatSessionDate(s.session_date)}</span>
+                            <span className="truncate min-w-0">{formatSessionDateTime(s.created_at || `${s.session_date}T00:00:00`)}</span>
                             <Link href={`${BASE_PATH}/history?sessionId=${s.id}`} className="shrink-0 text-sm text-[var(--color-link)] hover:underline">
                               View
                             </Link>

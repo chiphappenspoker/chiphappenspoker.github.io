@@ -18,6 +18,15 @@ function formatSessionDate(iso: string): string {
   }
 }
 
+function formatSessionDateTime(iso: string): string {
+  try {
+    const d = new Date(iso);
+    return d.toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' });
+  } catch {
+    return iso;
+  }
+}
+
 function HistoryPageContent() {
   const searchParams = useSearchParams();
   const sessionId = searchParams.get('sessionId') ?? '';
@@ -138,7 +147,7 @@ function HistoryPageContent() {
                   href={`/history?sessionId=${session.id}`}
                   className="settings-item-btn w-full text-left flex flex-col items-stretch no-underline text-inherit"
                 >
-                  <span className="font-medium">{formatSessionDate(session.session_date)}</span>
+                  <span className="font-medium">{formatSessionDateTime(session.created_at || `${session.session_date}T00:00:00`)}</span>
                   <span className="settings-item-meta">
                     {getGroupName(session.group_id)} · {session.currency}
                   </span>

@@ -676,6 +676,21 @@ footer { text-align: center; color: var(--color-muted); font-size: 12px; padding
 .page-payout-table tbody td:nth-child(6) { text-align: right; }
 .page-payout-table tfoot th { text-align: right; }
 
+/* Session detail (history) table: fixed layout; only Player left-aligned, rest right-aligned */
+.session-detail-table { table-layout: fixed; width: 100%; }
+.session-detail-table col:nth-child(1) { width: auto; }
+.session-detail-table col:nth-child(2),
+.session-detail-table col:nth-child(3),
+.session-detail-table col:nth-child(4) { width: 10ch; }
+.session-detail-table thead th:nth-child(1),
+.session-detail-table tbody td:nth-child(1) { text-align: left; }
+.session-detail-table thead th:nth-child(2),
+.session-detail-table thead th:nth-child(3),
+.session-detail-table thead th:nth-child(4),
+.session-detail-table tbody td:nth-child(2),
+.session-detail-table tbody td:nth-child(3),
+.session-detail-table tbody td:nth-child(4) { text-align: right; }
+
 /* ── Side pot page table columns ── */
 .page-sidepot-table col.col-name { width: auto; }
 .page-sidepot-table col.col-bet,
