@@ -4,11 +4,12 @@ import { BASE_PATH } from '../constants';
 import { startSyncEngine, stopSyncEngine } from '../sync/sync-engine';
 import { migrateLocalToCloud, needsMigration } from './migrate-local-to-cloud';
 
-/** Full URL for redirects after email confirmation (must match Supabase Redirect URLs allow list). */
+/** Full URL where users land after clicking "Activate account" in the confirmation email (must match Supabase Redirect URLs allow list). */
 function getEmailRedirectUrl(): string {
   if (typeof window === 'undefined') return '';
   const origin = window.location.origin;
-  return origin.endsWith('/') ? `${origin.slice(0, -1)}${BASE_PATH}` : `${origin}${BASE_PATH}`;
+  const base = origin.endsWith('/') ? `${origin.slice(0, -1)}${BASE_PATH}` : `${origin}${BASE_PATH}`;
+  return `${base}/activate`;
 }
 
 async function ensureProfile(userId: string, metadata: { full_name?: string; name?: string; email?: string }): Promise<void> {
