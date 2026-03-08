@@ -3,10 +3,12 @@
 import Link from 'next/link';
 import { useAuth } from '@/lib/auth/AuthProvider';
 import { useGroups } from '@/hooks/useGroups';
-import { getPlayerStats } from '@/lib/data/stats';
+import { getPlayerStats, getCumulativePnl } from '@/lib/data/stats';
 import { fmt } from '@/lib/calc/formatting';
 import { useEffect, useState } from 'react';
 import type { PlayerStats } from '@/lib/types';
+import type { CumulativePnlPoint } from '@/lib/data/stats';
+import { PnLChart } from '@/components/history/PnLChart';
 
 type Period = 'all' | '30' | '90' | 'year';
 
@@ -79,7 +81,9 @@ export default function StatsPage() {
   const [groupId, setGroupId] = useState<string>('');
   const [period, setPeriod] = useState<Period>('all');
   const [rows, setRows] = useState<PlayerStats[]>([]);
+  const [pnlData, setPnlData] = useState<CumulativePnlPoint[]>([]);
   const [loading, setLoading] = useState(false);
+  const [chartLoading, setChartLoading] = useState(false);
 
   const { fromDate, toDate } = getDateRange(period);
   const groupIdOrUndefined = groupId === '' || groupId === 'all' ? undefined : groupId;
@@ -100,6 +104,28 @@ export default function StatsPage() {
       })
       .finally(() => {
         if (!cancelled) setLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [user, groupIdOrUndefined, fromDate, toDate]);
+
+  useEffect(() => {
+    if (!user) {
+      setPnlData([]);
+      return;
+    }
+    let cancelled = false;
+    setChartLoading(true);
+    getCumulativePnl(user.id, groupIdOrUndefined ?? null, fromDate, toDate)
+      .then((data) => {
+        if (!cancelled) setPnlData(data);
+      })
+      .catch(() => {
+        if (!cancelled) setPnlData([]);
+      })
+      .finally(() => {
+        if (!cancelled) setChartLoading(false);
       });
     return () => {
       cancelled = true;
@@ -167,6 +193,15 @@ export default function StatsPage() {
             </select>
           </label>
         </div>
+
+        <section className="mb-6">
+          <h2 className="text-sm font-semibold text-[var(--color-muted)] mb-2">Cumulative profit over time</h2>
+          {chartLoading && pnlData.length === 0 ? (
+            <p className="muted-text">Loading chart…</p>
+          ) : (
+            <PnLChart data={pnlData} />
+          )}
+        </section>
 
         {loading && rows.length === 0 ? (
           <p className="muted-text">Loading…</p>
