@@ -1,6 +1,6 @@
 # ChipHappens — Migration & Implementation Plan
 
-> Last updated: 2026-02-21
+> Last updated: 2026-03-08
 > Tech Stack: Next.js (React) · Tailwind CSS · Supabase · Capacitor · RevenueCat
 > Approach: Full migration, phased rollout
 
@@ -12,13 +12,14 @@ Migrate ChipHappens from a vanilla JS PWA (6 modules, ~3,000 lines, no build too
 Next.js (React) static-export app with Supabase backend, deployed to GitHub Pages (web/PWA)
 and Google Play Store (Android via Capacitor). iOS App Store deferred to a later phase.
 
-The plan is divided into **4 phases**, each producing a shippable milestone:
+The plan is divided into **5 phases**, each producing a shippable milestone:
 
 | Phase | Milestone | Outcome |
 |-------|-----------|---------|
 | **1** | Framework Migration | Feature-parity with current app, now in Next.js + Tailwind |
 | **2** | Backend & Accounts | Supabase auth, cloud storage, offline sync |
-| **3** | Social & Premium | Groups, leaderboards, analytics, freemium, RevenueCat |
+| **3** | Social | Groups, leaderboards, analytics, game history |
+| **3b** | Premium & Notifications | Freemium gating, RevenueCat, push, data export |
 | **4** | Distribution | Google Play listing, iOS PWA polish, (future: App Store) |
 
 ---
@@ -357,9 +358,9 @@ When a localStorage-only user creates an account:
 
 ---
 
-## Phase 3 — Social & Premium Features
+## Phase 3 — Social Features
 
-**Goal:** Groups, leaderboards, analytics, freemium gating, push notifications.
+**Goal:** Groups, leaderboards, analytics, game history. No freemium or push yet.
 
 ### Step 3.1 — Database Schema Extension
 
@@ -421,7 +422,25 @@ Build components:
 - Time period selector: all time, last 30 days, last 90 days, this year
 - Computed server-side via Supabase SQL functions or Edge Functions for performance
 
-### Step 3.5 — Freemium Gating
+### Step 3.5 — Verification (Phase 3)
+
+- [x] Create group, invite via link, member joins
+- [x] Game settled → results appear in all participants' history
+- [x] PnL chart renders correctly with historical data
+- [x] Leaderboard shows correct rankings within group
+- [x] History page: filters (date range, group, stakes) work
+- [x] Session detail view shows correct players, payouts, transactions
+- [x] RLS: group members can read group's sessions; non-members cannot
+
+**Estimated effort: 2–3 weeks**
+
+---
+
+## Phase 3b — Premium & Notifications
+
+**Goal:** Freemium gating, RevenueCat, push notifications, data export.
+
+### Step 3b.1 — Freemium Gating
 
 Create `src/lib/entitlements/`:
 - `entitlements.ts` — checks `profiles.is_paid` or RevenueCat entitlement
@@ -433,7 +452,7 @@ Free tier limits:
 - Last 5 game sessions visible in history
 - No groups, no leaderboards, no analytics, no push, no export
 
-### Step 3.6 — RevenueCat Integration
+### Step 3b.2 — RevenueCat Integration
 
 - Create RevenueCat project, configure products
 - Install `@revenuecat/purchases-capacitor` (for Android) and
@@ -443,7 +462,7 @@ Free tier limits:
 - On purchase: RevenueCat webhook → Supabase Edge Function → set `profiles.is_paid = true`
 - On app open: check entitlement, update local state
 
-### Step 3.7 — Push Notifications
+### Step 3b.3 — Push Notifications
 
 - Supabase Edge Function to send FCM messages
 - Notification triggers:
@@ -454,24 +473,24 @@ Free tier limits:
 - Capacitor `@capacitor/push-notifications` plugin for Android native push
 - Web Push API for browser (best-effort)
 
-### Step 3.8 — Data Export
+### Step 3b.4 — Data Export
 
 - CSV export: Supabase Edge Function generates CSV from game_players + game_sessions
 - PDF export: client-side via jsPDF or server-side via Edge Function
 - GDPR full data export: Edge Function collects all user data → JSON download
 
-### Step 3.9 — Verification (Phase 3)
+### Step 3b.5 — Verification (Phase 3b)
 
-- [ ] Create group, invite via link, member joins
-- [ ] Game settled → results appear in all participants' history
-- [ ] PnL chart renders correctly with historical data
-- [ ] Leaderboard shows correct rankings within group
 - [ ] Free user blocked from paid features with upgrade prompt
 - [ ] Purchase flow works (sandbox/test mode)
+- [ ] After purchase, paid features unlock without reload
 - [ ] Push notification received on Android for group invite
-- [ ] CSV/PDF export contains correct data
+- [ ] Push preferences saved and respected
+- [ ] CSV export contains correct session/player data
+- [ ] PDF export renders correctly
+- [ ] Full data export (GDPR) returns complete user data
 
-**Estimated effort: 3–4 weeks**
+**Estimated effort: 2–3 weeks**
 
 ---
 
@@ -563,9 +582,10 @@ npx cap sync
 |-------|----------|------------|
 | Phase 1 — Framework Migration | 2–3 weeks | 2–3 weeks |
 | Phase 2 — Backend & Accounts | 2–3 weeks | 4–6 weeks |
-| Phase 3 — Social & Premium | 3–4 weeks | 7–10 weeks |
-| Phase 4 — Distribution & Polish | 2–3 weeks | 9–13 weeks |
-| **Total** | | **~10–13 weeks** |
+| Phase 3 — Social | 2–3 weeks | 6–9 weeks |
+| Phase 3b — Premium & Notifications | 2–3 weeks | 8–12 weeks |
+| Phase 4 — Distribution & Polish | 2–3 weeks | 10–15 weeks |
+| **Total** | | **~10–15 weeks** |
 
 Estimates assume a single developer working part-time (~20 hrs/week). Full-time would be roughly half.
 
