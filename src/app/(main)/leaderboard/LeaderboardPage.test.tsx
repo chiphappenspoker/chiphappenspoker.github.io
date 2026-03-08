@@ -16,6 +16,10 @@ vi.mock('@/lib/data/stats', () => ({ getGroupLeaderboard: vi.fn() }));
 vi.mock('@/components/layout/NavMenu', () => ({
   NavMenu: () => <nav data-testid="nav-menu">NavMenu</nav>,
 }));
+vi.mock('@/lib/storage/local-storage', () => ({
+  getLocalStorage: vi.fn(() => null),
+  setLocalStorage: vi.fn(),
+}));
 
 describe('LeaderboardPage', () => {
   beforeEach(() => {
@@ -67,7 +71,16 @@ describe('LeaderboardPage', () => {
       reload: vi.fn(),
     });
     vi.mocked(getGroupLeaderboard).mockResolvedValue([
-      { user_id: 'u1', display_name: 'Alice', total_profit: 100, total_sessions: 5, win_count: 3, loss_count: 2 },
+      {
+        user_id: 'u1',
+        display_name: 'Alice',
+        total_profit: 100,
+        total_sessions: 5,
+        win_count: 3,
+        loss_count: 2,
+        avg_profit: 20,
+        max_session_profit: 50,
+      },
     ]);
     render(<LeaderboardPage />);
     const groupSelect = screen.getByRole('combobox', { name: /group/i });
@@ -83,8 +96,26 @@ describe('LeaderboardPage', () => {
       { id: 'group-abc', name: 'Friday Game', invite_code: 'abc', currency: 'EUR', default_buy_in: '30', settlement_mode: 'greedy', created_by: 'u1', created_at: '', updated_at: '' },
     ];
     const mockRows = [
-      { user_id: 'u1', display_name: 'Alice', total_profit: 150.5, total_sessions: 10, win_count: 6, loss_count: 4 },
-      { user_id: 'u2', display_name: 'Bob', total_profit: -50, total_sessions: 10, win_count: 4, loss_count: 6 },
+      {
+        user_id: 'u1',
+        display_name: 'Alice',
+        total_profit: 150.5,
+        total_sessions: 10,
+        win_count: 6,
+        loss_count: 4,
+        avg_profit: 15.05,
+        max_session_profit: 80,
+      },
+      {
+        user_id: 'u2',
+        display_name: 'Bob',
+        total_profit: 20,
+        total_sessions: 10,
+        win_count: 4,
+        loss_count: 6,
+        avg_profit: 2,
+        max_session_profit: 25,
+      },
     ];
     vi.mocked(useAuth).mockReturnValue({
       user: { id: 'u1' } as unknown as import('@supabase/supabase-js').User,
