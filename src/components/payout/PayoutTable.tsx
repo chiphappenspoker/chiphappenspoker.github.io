@@ -21,6 +21,8 @@ export function PayoutTable() {
   const hasOpenedForNoGroupRef = useRef(false);
   const [savingSession, setSavingSession] = useState(false);
   const [endSessionModalOpen, setEndSessionModalOpen] = useState(false);
+  /** When false, show New Session; when true (and user), show End Session. Toggles on New Session click and when End Session modal closes. */
+  const [sessionInProgress, setSessionInProgress] = useState(false);
 
   // When user has a group selected, allow auto-open again after they clear
   useEffect(() => {
@@ -42,6 +44,7 @@ export function PayoutTable() {
 
   const closeEndSessionModal = () => {
     setEndSessionModalOpen(false);
+    setSessionInProgress(false);
     // exit settle mode when leaving end-session flow
     if (calc.checkboxesVisible) calc.toggleSettle();
   };
@@ -50,6 +53,11 @@ export function PayoutTable() {
     if (calc.currentSessionId) await clearQueueEntriesForSession(calc.currentSessionId);
     calc.clearTable();
     setOpenSelectGroupModal(true);
+  };
+
+  const handleNewSessionClick = async () => {
+    await handleClear();
+    if (user) setSessionInProgress(true);
   };
 
   const handleSaveSession = async () => {
@@ -220,33 +228,39 @@ export function PayoutTable() {
                 <tr>
                   <th className="controls-cell" colSpan={6}>
                     <div className="controls">
-                      <button
-                        className="btn btn-secondary"
-                        type="button"
-                        disabled={calc.tableLocked || calc.rows.length >= 32}
-                        onClick={() => calc.addRow()}
-                      >
-                        ➕ Add
-                      </button>
-                      <button
-                        className="btn btn-secondary"
-                        type="button"
-                        disabled={calc.tableLocked || calc.rows.length <= 0}
-                        onClick={calc.toggleDeleteMode}
-                        style={{ opacity: 1 }}
-                      >
-                        ➖ Delete
-                      </button>
-                      <button
-                        className="btn btn-secondary"
-                        type="button"
-                        disabled={calc.tableLocked}
-                        onClick={handleClear}
-                      >
-                        🧹 Clear
-                      </button>
-                      <div className="spacer" />
-                      <div className="buyin-container">
+                      <div className="controls-session-center" aria-hidden="true" />
+                      <div className="controls-session-wrap">
+                        {(!user || !sessionInProgress) ? (
+                          <button
+                            className="btn btn-secondary btn-session-action"
+                            type="button"
+                            disabled={calc.tableLocked}
+                            onClick={handleNewSessionClick}
+                            style={{ display: 'inline-flex', alignItems: 'center', gap: '0.35rem' }}
+                          >
+                            <span aria-hidden="true">
+                              <svg width="18" height="18" viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg" role="img">
+                                <title>Poker chip</title>
+                                <circle cx="32" cy="32" r="30" fill="#d4a832" stroke="#b8860b" strokeWidth="3" />
+                                <circle cx="32" cy="32" r="22" fill="none" stroke="#b8860b" strokeWidth="2" />
+                                <circle cx="32" cy="32" r="14" fill="none" stroke="#b8860b" strokeWidth="1.5" />
+                              </svg>
+                            </span>
+                            New session
+                          </button>
+                        ) : (
+                        <button
+                          className="btn btn-secondary btn-session-action"
+                          type="button"
+                          disabled={calc.tableLocked || calc.rows.length === 0}
+                          onClick={openEndSessionModal}
+                        >
+                          🏁 End session
+                        </button>
+                        )}
+                      </div>
+                      <div className="controls-right-wrap">
+                        <div className="buyin-container">
                         <label className="buyin-label" htmlFor="buyInInput">
                           Buy-In
                         </label>
@@ -262,6 +276,7 @@ export function PayoutTable() {
                             (e.target as HTMLInputElement).select()
                           }
                         />
+                        </div>
                       </div>
                     </div>
                   </th>
@@ -284,7 +299,6 @@ export function PayoutTable() {
                     cashOut={row.cashOut}
                     settled={row.settled}
                     payout={calc.payouts[i] ?? 0}
-                    deleteMode={calc.deleteMode}
                     checkboxesVisible={calc.checkboxesVisible}
                     tableLocked={calc.tableLocked}
                     onUpdateName={(v) => calc.updateRow(i, 'name', v)}
@@ -314,23 +328,21 @@ export function PayoutTable() {
         <div className="action-row">
           <div className="action-buttons">
             <button
-              className="btn btn-secondary btn-wide"
+              className="btn btn-secondary btn-session-action"
+              type="button"
+              disabled={calc.tableLocked || calc.rows.length >= 32}
+              onClick={() => calc.addRow()}
+            >
+              ➕ Add Player
+            </button>
+            <button
+              className="btn btn-secondary btn-session-action"
               type="button"
               disabled={calc.tableLocked}
               onClick={calc.toggleSuspects}
             >
               👥 Usual Suspects
             </button>
-            {user && (
-              <button
-                className="btn btn-secondary btn-wide"
-                type="button"
-                disabled={calc.tableLocked || calc.rows.length === 0}
-                onClick={openEndSessionModal}
-              >
-                🏁 End session
-              </button>
-            )}
           </div>
 
           {/* Usual Suspects */}

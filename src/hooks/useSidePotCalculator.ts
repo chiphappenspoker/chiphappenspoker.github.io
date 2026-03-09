@@ -28,7 +28,6 @@ export function useSidePotCalculator() {
   const [rows, setRows] = useState<SidePotPlayerData[]>([]);
   const [initialPot, setInitialPot] = useState('');
   const [boards, setBoards] = useState(1);
-  const [deleteMode, setDeleteMode] = useState(false);
   const [showSuspects, setShowSuspects] = useState(false);
   const [winnerSelections, setWinnerSelections] = useState<Record<string, boolean>>({});
   const [initialized, setInitialized] = useState(false);
@@ -226,13 +225,8 @@ export function useSidePotCalculator() {
     ]);
     setInitialPot('');
     setBoards(1);
-    setDeleteMode(false);
     setShowSuspects(false);
     setWinnerSelections({});
-  }, []);
-
-  const toggleDeleteMode = useCallback(() => {
-    setDeleteMode((prev) => !prev);
   }, []);
 
   const toggleSuspects = useCallback(() => {
@@ -303,8 +297,6 @@ export function useSidePotCalculator() {
     removeRow,
     updateRow,
     clearTable,
-    deleteMode,
-    toggleDeleteMode,
     showSuspects,
     toggleSuspects,
     availableSuspects,

@@ -110,27 +110,20 @@ export function SidePotTable() {
                   <th className="controls-cell" colSpan={3}>
                     <div className="controls">
                       <button
-                        className="btn btn-secondary"
-                        type="button"
-                        disabled={calc.rows.length >= 32}
-                        onClick={() => calc.addRow()}
-                      >
-                        ➕ Add
-                      </button>
-                      <button
-                        className="btn btn-secondary"
-                        type="button"
-                        disabled={calc.rows.length <= 0}
-                        onClick={calc.toggleDeleteMode}
-                      >
-                        ➖ Delete
-                      </button>
-                      <button
-                        className="btn btn-secondary"
+                        className="btn btn-secondary btn-session-action"
                         type="button"
                         onClick={calc.clearTable}
+                        style={{ display: 'inline-flex', alignItems: 'center', gap: '0.35rem' }}
                       >
-                        🧹 Clear
+                        <span aria-hidden="true">
+                          <svg width="18" height="18" viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg" role="img">
+                            <title>Poker chip</title>
+                            <circle cx="32" cy="32" r="30" fill="#d4a832" stroke="#b8860b" strokeWidth="3" />
+                            <circle cx="32" cy="32" r="22" fill="none" stroke="#b8860b" strokeWidth="2" />
+                            <circle cx="32" cy="32" r="14" fill="none" stroke="#b8860b" strokeWidth="1.5" />
+                          </svg>
+                        </span>
+                        New session
                       </button>
                       <div className="spacer" />
                       <div className="boards-container">
@@ -187,7 +180,6 @@ export function SidePotTable() {
                     name={row.name}
                     bet={row.bet}
                     won={calc.playerWinnings[row.name.trim()] ?? 0}
-                    deleteMode={calc.deleteMode}
                     onUpdateName={(v) => calc.updateRow(i, 'name', v)}
                     onUpdateBet={(v) => calc.updateRow(i, 'bet', v)}
                     onDelete={() => calc.removeRow(i)}
@@ -217,7 +209,15 @@ export function SidePotTable() {
         <div className="action-row">
           <div className="action-buttons">
             <button
-              className="btn btn-secondary btn-wide"
+              className="btn btn-secondary btn-session-action"
+              type="button"
+              onClick={() => calc.addRow()}
+              disabled={calc.rows.length >= 32}
+            >
+              ➕ Add Player
+            </button>
+            <button
+              className="btn btn-secondary btn-session-action"
               type="button"
               onClick={calc.toggleSuspects}
             >

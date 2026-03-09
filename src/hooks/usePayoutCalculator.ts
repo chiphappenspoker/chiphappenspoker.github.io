@@ -27,7 +27,6 @@ export function usePayoutCalculator() {
   /** Session id after first save; null until then or after clear. Subsequent saves upsert this session. */
   const [currentSessionId, setCurrentSessionId] = useState<string | null>(null);
   const [selectedGroupIdInternal, setSelectedGroupIdInternal] = useState<string | null>(null);
-  const [deleteMode, setDeleteMode] = useState(false);
   const [checkboxesVisible, setCheckboxesVisible] = useState(false);
   const [showSuspects, setShowSuspects] = useState(false);
   const [initialized, setInitialized] = useState(false);
@@ -298,7 +297,6 @@ export function usePayoutCalculator() {
       { id: generateId(), name: '', buyIn: defaultBuyIn, cashOut: '', settled: false },
     ]);
     setBuyInRaw(defaultBuyIn);
-    setDeleteMode(false);
     setCheckboxesVisible(false);
     setShowSuspects(false);
     removeLocalStorage(PAYOUT_STORAGE_KEY);
@@ -315,16 +313,8 @@ export function usePayoutCalculator() {
     );
   }, []);
 
-  const toggleDeleteMode = useCallback(() => {
-    setDeleteMode((prev) => {
-      if (!prev) setCheckboxesVisible(false);
-      return !prev;
-    });
-  }, []);
-
   const toggleSettle = useCallback(() => {
     setShowSuspects(false);
-    setDeleteMode(false);
     setCheckboxesVisible((prev) => !prev);
   }, []);
 
@@ -396,8 +386,6 @@ export function usePayoutCalculator() {
     updateRow,
     adjustBuyIn,
     clearTable,
-    deleteMode,
-    toggleDeleteMode,
     checkboxesVisible,
     toggleSettle,
     tableLocked,
