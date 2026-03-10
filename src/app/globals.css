@@ -161,13 +161,15 @@
 .input-field,
 .select-field {
   width: 100%;
-  padding: 10px 8px;
+  height: 32px;
+  padding: 0 8px;
   border-radius: var(--radius-lg);
   border: 1px solid var(--color-outline);
   background: #141418;
   color: var(--color-text);
   outline: none;
-  min-height: 36px;
+  box-sizing: border-box;
+  line-height: 1;
 }
 
 .select-field { text-align: center; }
@@ -220,11 +222,11 @@
   line-height: 1;
 }
 
-.buyin-input { width: 100%; text-align: center; font-variant-numeric: tabular-nums; font-size: 13px; min-height: 36px; }
+.buyin-input { width: 100%; height: 32px; text-align: center; font-variant-numeric: tabular-nums; font-size: 13px; box-sizing: border-box; }
 
 .boards-container { display: flex; flex-direction: column; gap: 4px; align-items: flex-end; }
-.boards-input { width: 9ch; min-height: 36px; }
-.boards-select { width: 6ch; min-height: 36px; font-size: 13px; }
+.boards-input { width: 9ch; height: 32px; box-sizing: border-box; }
+.boards-select { width: 6ch; height: 32px; font-size: 13px; box-sizing: border-box; }
 
 /* ── Status ── */
 .status { margin-left: auto; display: inline-flex; align-items: center; gap: 8px; font-weight: 700; }
@@ -361,6 +363,123 @@ footer { text-align: center; color: var(--color-muted); font-size: 12px; padding
   position: relative; z-index: 1;
   background: var(--color-panel);
 }
+
+/* Full-row swipe (Option 1: single cell + grid) */
+.swipe-cell-full-row { padding: 0 !important; vertical-align: middle; }
+.swipe-wrapper-full-row {
+  position: relative;
+  overflow: hidden;
+  width: 100%;
+  min-width: 0;
+  min-height: 100%;
+  box-sizing: border-box;
+}
+.swipe-wrapper-full-row .swipe-reveal {
+  right: 0;
+  left: auto;
+}
+.swipe-wrapper-full-row .swipe-content {
+  width: 100%;
+  min-width: 0;
+  min-height: 100%;
+}
+
+/* Payout row grid: name | in (stepper) | out | payout (same % as table = same total width) */
+.payout-row-grid {
+  display: grid;
+  grid-template-columns: var(--payout-col-name) var(--payout-col-in) var(--payout-col-num) var(--payout-col-num);
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  align-items: center;
+  gap: 0;
+  background: var(--color-panel);
+  box-sizing: border-box;
+}
+.payout-row-grid > * {
+  padding: var(--space-sm) var(--space-lg);
+  min-width: 0;
+}
+.payout-row-grid > *:nth-child(2) { text-align: center; }
+.payout-row-grid > *:nth-child(3),
+.payout-row-grid .payout { text-align: right; }
+.payout-row-grid .buyin-stepper { padding-left: var(--space-sm); padding-right: var(--space-sm); justify-self: center; max-width: 100%; }
+
+/* Inline buy-in stepper (same colors as old step buttons) */
+.buyin-stepper {
+  display: flex;
+  align-items: stretch;
+  height: 32px;
+  border: 1px solid var(--color-outline);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+  background: var(--color-panel);
+}
+.buyin-stepper-btn {
+  flex-shrink: 0;
+  width: 24px;
+  height: 100%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  cursor: pointer;
+  font-weight: 800;
+  color: white;
+  font-size: 13px;
+  padding: 0;
+  transition: opacity 0.2s, transform 0.06s ease;
+}
+.buyin-stepper-btn:active { transform: translateY(1px); }
+.buyin-stepper-btn:disabled { opacity: 0.45; cursor: not-allowed; }
+.buyin-stepper-minus {
+  background: var(--color-warn);
+  border-color: rgba(0,0,0,0.2);
+  border-radius: var(--radius-lg) 0 0 var(--radius-lg);
+}
+.buyin-stepper-plus {
+  background: var(--color-ok);
+  border-color: rgba(0,0,0,0.2);
+  border-radius: 0 var(--radius-lg) var(--radius-lg) 0;
+}
+.buyin-stepper-input {
+  flex: 1;
+  min-width: 0;
+  width: 100%;
+  height: 100%;
+  padding: 0 6px;
+  border: none;
+  border-left: 1px solid var(--color-outline);
+  border-right: 1px solid var(--color-outline);
+  border-radius: 0;
+  background: #141418;
+  color: var(--color-text);
+  font-size: inherit;
+  text-align: center;
+  outline: none;
+  box-sizing: border-box;
+}
+.buyin-stepper-input.zero-value { color: var(--color-muted); }
+.row-locked .buyin-stepper-btn,
+.row-locked .buyin-stepper-input { opacity: 0.45 !important; pointer-events: none; }
+
+/* Side pot row grid: name | bet | won (same % as table = same total width) */
+.sidepot-row-grid {
+  display: grid;
+  grid-template-columns: var(--sidepot-col-name) var(--sidepot-col-num) var(--sidepot-col-num);
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  align-items: center;
+  gap: 0;
+  background: var(--color-panel);
+  box-sizing: border-box;
+}
+.sidepot-row-grid > * {
+  padding: var(--space-sm) var(--space-lg);
+  min-width: 0;
+}
+.sidepot-row-grid .payout { text-align: right; }
 
 /* ── Delete buttons ── */
 .delete-btn {
@@ -716,19 +835,26 @@ footer { text-align: center; color: var(--color-muted); font-size: 12px; padding
   to { opacity: 0; transform: translateY(20px); }
 }
 
-/* ── Payout page table columns ── */
-.page-payout-table col.col-name { width: auto; }
-.page-payout-table col.col-in,
+/* ── Payout page table columns (4 cols: name, in stepper, out, payout) ── */
+.page-payout-table {
+  --payout-col-name: 50%;
+  --payout-col-in: 23.334%;
+  --payout-col-num: 13.334%;
+}
+.page-payout-table col.col-name { width: var(--payout-col-name); }
+.page-payout-table col.col-in { width: var(--payout-col-in); }
 .page-payout-table col.col-out,
-.page-payout-table col.col-payout { width: 10ch; min-width: 10ch; }
-.page-payout-table col.col-step { width: 32px; min-width: 32px; }
+.page-payout-table col.col-payout { width: var(--payout-col-num); }
+.page-payout-table thead th:nth-child(2) { text-align: center; }
 .page-payout-table thead th:nth-child(3),
-.page-payout-table thead th:nth-child(5),
-.page-payout-table thead th:nth-child(6) { text-align: center; }
+.page-payout-table thead th:nth-child(4) { text-align: right; }
+.page-payout-table tbody td:nth-child(2) { text-align: center; }
 .page-payout-table tbody td:nth-child(3),
-.page-payout-table tbody td:nth-child(5) { text-align: center; }
-.page-payout-table tbody td:nth-child(6) { text-align: right; }
-.page-payout-table tfoot th { text-align: right; }
+.page-payout-table tbody td:nth-child(4) { text-align: right; }
+.page-payout-table tfoot th:nth-child(1) { text-align: left; }
+.page-payout-table tfoot th:nth-child(2) { text-align: center; }
+.page-payout-table tfoot th:nth-child(3),
+.page-payout-table tfoot th:nth-child(4) { text-align: right; }
 
 /* ── Leaderboard carousel ── */
 .leaderboard-carousel { margin-top: var(--space-md); }
@@ -792,9 +918,13 @@ footer { text-align: center; color: var(--color-muted); font-size: 12px; padding
 .session-detail-table tbody td:nth-child(4) { text-align: right; }
 
 /* ── Side pot page table columns ── */
-.page-sidepot-table col.col-name { width: auto; }
+.page-sidepot-table {
+  --sidepot-col-name: 50%;
+  --sidepot-col-num: 25%;
+}
+.page-sidepot-table col.col-name { width: var(--sidepot-col-name); }
 .page-sidepot-table col.col-bet,
-.page-sidepot-table col.col-won { width: 10ch; min-width: 10ch; }
+.page-sidepot-table col.col-won { width: var(--sidepot-col-num); }
 .page-sidepot-table thead th:nth-child(2),
 .page-sidepot-table thead th:nth-child(3) { text-align: center; }
 .page-sidepot-table tbody td:nth-child(2) { text-align: center; }
@@ -859,19 +989,14 @@ footer { text-align: center; color: var(--color-muted); font-size: 12px; padding
   .btn { padding: 10px 12px; font-size: 13px; border-radius: var(--radius-lg); height: 36px; }
   table { font-size: 13px; }
   thead th, tbody td, tfoot th { padding: 6px 8px; }
-  .input-field, .select-field { padding: 10px 6px; font-size: 13px; min-height: 36px; }
-  .buyin-input { width: 8ch; padding: 10px 6px; font-size: 13px; min-height: 36px; }
+  .input-field, .select-field { padding: 0 6px; font-size: 13px; height: 32px; }
+  .buyin-input { width: 8ch; padding: 0 6px; font-size: 13px; height: 32px; }
   footer { padding: 12px 0; font-size: 11px; }
 
-  .page-payout-table col.col-name { width: 35%; }
-  .page-payout-table col.col-in,
-  .page-payout-table col.col-out,
-  .page-payout-table col.col-payout { width: 10ch; min-width: 10ch; }
-  .page-payout-table col.col-step { width: 32px; min-width: 32px; }
-
-  .page-sidepot-table col.col-name { width: 35%; }
-  .page-sidepot-table col.col-bet,
-  .page-sidepot-table col.col-won { width: 10ch; min-width: 10ch; }
+  .page-payout-table { --payout-col-name: 35%; --payout-col-in: 28.334%; --payout-col-num: 18.334%; }
+  .page-sidepot-table { --sidepot-col-name: 35%; --sidepot-col-num: 32.5%; }
+  .page-payout-table .payout-row-grid > * { padding: 6px 8px; }
+  .page-sidepot-table .sidepot-row-grid > * { padding: 6px 8px; }
 
   .pot-display { margin-top: 16px; padding: 12px; }
   .pot-card { padding: 6px; margin: 4px 0; }
@@ -890,19 +1015,14 @@ footer { text-align: center; color: var(--color-muted); font-size: 12px; padding
   .btn { padding: 10px 10px; font-size: 12px; height: 36px; }
   table { font-size: 12px; }
   thead th, tbody td, tfoot th { padding: 5px 6px; }
-  .input-field, .select-field { padding: 10px 4px; font-size: 12px; min-height: 36px; }
-  .buyin-input { width: 7ch; padding: 10px 4px; font-size: 12px; min-height: 36px; }
+  .input-field, .select-field { padding: 0 4px; font-size: 12px; height: 32px; }
+  .buyin-input { width: 7ch; padding: 0 4px; font-size: 12px; height: 32px; }
   footer { padding: 10px 0; font-size: 10px; }
 
-  .page-payout-table col.col-name { width: 40%; }
-  .page-payout-table col.col-in,
-  .page-payout-table col.col-out,
-  .page-payout-table col.col-payout { width: 8ch; min-width: 8ch; }
-  .page-payout-table col.col-step { width: 32px; min-width: 32px; }
-
-  .page-sidepot-table col.col-name { width: 40%; }
-  .page-sidepot-table col.col-bet,
-  .page-sidepot-table col.col-won { width: 8ch; min-width: 8ch; }
+  .page-payout-table { --payout-col-name: 40%; --payout-col-in: 26.667%; --payout-col-num: 16.667%; }
+  .page-sidepot-table { --sidepot-col-name: 40%; --sidepot-col-num: 30%; }
+  .page-payout-table .payout-row-grid > * { padding: 5px 6px; }
+  .page-sidepot-table .sidepot-row-grid > * { padding: 5px 6px; }
 
   .pot-display { padding: 10px; margin-top: 12px; }
   .pot-card { padding: 6px; margin: 3px 0; }

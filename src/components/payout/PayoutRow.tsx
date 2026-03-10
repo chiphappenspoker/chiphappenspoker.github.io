@@ -71,99 +71,95 @@ export function PayoutRow({
 
   return (
     <tr className={tableLocked ? 'row-locked' : ''}>
-      <td className="swipe-cell">
-        <div className="swipe-wrapper">
+      <td className="swipe-cell swipe-cell-full-row" colSpan={4}>
+        <div className="swipe-wrapper swipe-wrapper-full-row">
           <div className="swipe-reveal" aria-hidden="true">
             <span className="swipe-reveal-label">Delete</span>
           </div>
           <div
-            className="swipe-content"
-          style={{
-            transform: `translateX(${swipeOffset}px)`,
-            transition: isDragging ? 'none' : 'transform 0.2s ease-out',
-          }}
-          onTouchStart={handleTouchStart}
-          onTouchMove={handleTouchMove}
-          onTouchEnd={handleTouchEnd}
-        >
-          <div
-            className={`name-cell-wrapper${
-              !checkboxesVisible ? ' hidden-checkboxes' : ''
-            }`}
+            className="swipe-content payout-row-grid"
+            style={{
+              transform: `translateX(${swipeOffset}px)`,
+              transition: isDragging ? 'none' : 'transform 0.2s ease-out',
+            }}
+            onTouchStart={handleTouchStart}
+            onTouchMove={handleTouchMove}
+            onTouchEnd={handleTouchEnd}
           >
-            <input
-              type="checkbox"
-              checked={settled}
-              title="Settled"
-              onChange={(e) => onUpdateSettled(e.target.checked)}
-            />
-            <input
-              className="input-field name-input"
-              type="text"
-              placeholder="Player"
-              inputMode="text"
-              autoComplete="off"
-              spellCheck={false}
-              value={name}
-              disabled={tableLocked}
-              onChange={(e) => onUpdateName(e.target.value)}
-              onClick={(e) => (e.target as HTMLInputElement).select()}
-            />
+            <div
+              className={`name-cell-wrapper${
+                !checkboxesVisible ? ' hidden-checkboxes' : ''
+              }`}
+            >
+              <input
+                type="checkbox"
+                checked={settled}
+                title="Settled"
+                onChange={(e) => onUpdateSettled(e.target.checked)}
+              />
+              <input
+                className="input-field name-input"
+                type="text"
+                placeholder="Player"
+                inputMode="text"
+                autoComplete="off"
+                spellCheck={false}
+                value={name}
+                disabled={tableLocked}
+                onChange={(e) => onUpdateName(e.target.value)}
+                onClick={(e) => (e.target as HTMLInputElement).select()}
+              />
+            </div>
+            <div className="buyin-stepper">
+              <button
+                type="button"
+                className="buyin-stepper-btn buyin-stepper-minus"
+                title="Subtract buy-in"
+                aria-label="Subtract buy-in"
+                disabled={tableLocked}
+                onClick={() => onAdjust(-1)}
+              >
+                −
+              </button>
+              <input
+                className={`buyin-stepper-input num-input${inVal === 0 ? ' zero-value' : ''}`}
+                type="text"
+                placeholder="0"
+                inputMode="numeric"
+                autoComplete="off"
+                value={buyIn}
+                disabled={tableLocked}
+                onChange={(e) => onUpdateBuyIn(e.target.value)}
+                onClick={(e) => (e.target as HTMLInputElement).select()}
+              />
+              <button
+                type="button"
+                className="buyin-stepper-btn buyin-stepper-plus"
+                title="Add buy-in"
+                aria-label="Add buy-in"
+                disabled={tableLocked}
+                onClick={() => onAdjust(1)}
+              >
+                +
+              </button>
+            </div>
+            <div>
+              <input
+                className={`input-field num-input${outVal === 0 ? ' zero-value' : ''}`}
+                type="text"
+                placeholder="0.00"
+                inputMode="decimal"
+                autoComplete="off"
+                value={cashOut}
+                disabled={tableLocked}
+                onChange={(e) => onUpdateCashOut(e.target.value)}
+                onClick={(e) => (e.target as HTMLInputElement).select()}
+              />
+            </div>
+            <div className="payout">{payoutStr}</div>
           </div>
         </div>
-        </div>
       </td>
-      <td className="step-cell minus-cell">
-        <button
-          type="button"
-          className="step-btn minus"
-          title="Subtract buy-in"
-          aria-label="Subtract buy-in"
-          disabled={tableLocked}
-          onClick={() => onAdjust(-1)}
-        >
-          −
-        </button>
-      </td>
-      <td>
-        <input
-          className={`input-field num-input${inVal === 0 ? ' zero-value' : ''}`}
-          type="text"
-          placeholder="0"
-          inputMode="numeric"
-          autoComplete="off"
-          value={buyIn}
-          disabled={tableLocked}
-          onChange={(e) => onUpdateBuyIn(e.target.value)}
-          onClick={(e) => (e.target as HTMLInputElement).select()}
-        />
-      </td>
-      <td className="step-cell plus-cell">
-        <button
-          type="button"
-          className="step-btn plus"
-          title="Add buy-in"
-          aria-label="Add buy-in"
-          disabled={tableLocked}
-          onClick={() => onAdjust(1)}
-        >
-          +
-        </button>
-      </td>
-      <td>
-        <input
-          className={`input-field num-input${outVal === 0 ? ' zero-value' : ''}`}
-          type="text"
-          placeholder="0.00"
-          inputMode="decimal"
-          autoComplete="off"
-          value={cashOut}
-          disabled={tableLocked}
-          onChange={(e) => onUpdateCashOut(e.target.value)}
-          onClick={(e) => (e.target as HTMLInputElement).select()}
-        />
-      </td>
-      <td className="payout">{payoutStr}</td>
     </tr>
   );
 }

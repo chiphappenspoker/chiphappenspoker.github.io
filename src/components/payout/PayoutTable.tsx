@@ -218,15 +218,13 @@ export function PayoutTable() {
             <table className="page-payout-table">
               <colgroup>
                 <col className="col-name" />
-                <col className="col-step" />
                 <col className="col-in" />
-                <col className="col-step" />
                 <col className="col-out" />
                 <col className="col-payout" />
               </colgroup>
               <thead>
                 <tr>
-                  <th className="controls-cell" colSpan={6}>
+                  <th className="controls-cell" colSpan={4}>
                     <div className="controls">
                       <div className="controls-session-center" aria-hidden="true" />
                       <div className="controls-session-wrap">
@@ -283,9 +281,7 @@ export function PayoutTable() {
                 </tr>
                 <tr>
                   <th>Name</th>
-                  <th aria-label="decrement"></th>
                   <th>In</th>
-                  <th aria-label="increment"></th>
                   <th>Out</th>
                   <th>Payout</th>
                 </tr>
@@ -313,9 +309,7 @@ export function PayoutTable() {
               <tfoot>
                 <tr>
                   <th>Total</th>
-                  <th></th>
                   <th className="payout">{fmtOptionalDecimals(calc.totalIn)}</th>
-                  <th></th>
                   <th className="payout">{fmtOptionalDecimals(calc.totalOut)}</th>
                   <th className="payout">{fmtOptionalDecimals(calc.totalPayout)}</th>
                 </tr>

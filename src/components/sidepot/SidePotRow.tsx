@@ -55,50 +55,50 @@ export function SidePotRow({
 
   return (
     <tr>
-      <td className="swipe-cell">
-        <div className="swipe-wrapper">
+      <td className="swipe-cell swipe-cell-full-row" colSpan={3}>
+        <div className="swipe-wrapper swipe-wrapper-full-row">
           <div className="swipe-reveal" aria-hidden="true">
             <span className="swipe-reveal-label">Delete</span>
           </div>
           <div
-            className="swipe-content"
-          style={{
-            transform: `translateX(${swipeOffset}px)`,
-            transition: isDragging ? 'none' : 'transform 0.2s ease-out',
-          }}
-          onTouchStart={handleTouchStart}
-          onTouchMove={handleTouchMove}
-          onTouchEnd={handleTouchEnd}
-        >
-          <div className="name-cell-wrapper">
-            <input
-              className="input-field name-input"
-              type="text"
-              placeholder="Player"
-              inputMode="text"
-              autoComplete="off"
-              spellCheck={false}
-              value={name}
-              onChange={(e) => onUpdateName(e.target.value)}
-              onClick={(e) => (e.target as HTMLInputElement).select()}
-            />
+            className="swipe-content sidepot-row-grid"
+            style={{
+              transform: `translateX(${swipeOffset}px)`,
+              transition: isDragging ? 'none' : 'transform 0.2s ease-out',
+            }}
+            onTouchStart={handleTouchStart}
+            onTouchMove={handleTouchMove}
+            onTouchEnd={handleTouchEnd}
+          >
+            <div className="name-cell-wrapper">
+              <input
+                className="input-field name-input"
+                type="text"
+                placeholder="Player"
+                inputMode="text"
+                autoComplete="off"
+                spellCheck={false}
+                value={name}
+                onChange={(e) => onUpdateName(e.target.value)}
+                onClick={(e) => (e.target as HTMLInputElement).select()}
+              />
+            </div>
+            <div>
+              <input
+                className={`input-field num-input${betVal === 0 ? ' zero-value' : ''}`}
+                type="text"
+                placeholder="0.00"
+                inputMode="decimal"
+                autoComplete="off"
+                value={bet}
+                onChange={(e) => onUpdateBet(e.target.value)}
+                onClick={(e) => (e.target as HTMLInputElement).select()}
+              />
+            </div>
+            <div className="payout">{wonStr}</div>
           </div>
         </div>
-        </div>
       </td>
-      <td>
-        <input
-          className={`input-field num-input${betVal === 0 ? ' zero-value' : ''}`}
-          type="text"
-          placeholder="0.00"
-          inputMode="decimal"
-          autoComplete="off"
-          value={bet}
-          onChange={(e) => onUpdateBet(e.target.value)}
-          onClick={(e) => (e.target as HTMLInputElement).select()}
-        />
-      </td>
-      <td className="payout">{wonStr}</td>
     </tr>
   );
 }
