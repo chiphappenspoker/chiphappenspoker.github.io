@@ -5,12 +5,14 @@ import { useState, useRef } from 'react';
 import { parseNum, fmtOptionalDecimals } from '@/lib/calc/formatting';
 
 const SWIPE_DELETE_THRESHOLD = 100;
+const SWIPE_PAID_THRESHOLD = 100;
 
 interface PayoutRowProps {
   name: string;
   buyIn: string;
   cashOut: string;
   settled: boolean;
+  paid: boolean;
   payout: number;
   checkboxesVisible: boolean;
   tableLocked: boolean;
@@ -20,6 +22,7 @@ interface PayoutRowProps {
   onUpdateSettled: (v: boolean) => void;
   onAdjust: (delta: number) => void;
   onDelete: () => void;
+  onMarkPaid: () => void;
 }
 
 export function PayoutRow({
@@ -27,6 +30,7 @@ export function PayoutRow({
   buyIn,
   cashOut,
   settled,
+  paid,
   payout,
   checkboxesVisible,
   tableLocked,
@@ -36,6 +40,7 @@ export function PayoutRow({
   onUpdateSettled,
   onAdjust,
   onDelete,
+  onMarkPaid,
 }: PayoutRowProps) {
   const inVal = parseNum(buyIn);
   const outVal = parseNum(cashOut);
@@ -55,14 +60,16 @@ export function PayoutRow({
     if (tableLocked || touchStartXRef.current == null) return;
     const x = e.touches[0].clientX;
     const dx = x - touchStartXRef.current;
-    if (dx < 0) e.preventDefault();
-    setSwipeOffset(Math.min(0, dx));
+    if (dx !== 0) e.preventDefault();
+    setSwipeOffset(Math.max(-SWIPE_DELETE_THRESHOLD - 20, Math.min(SWIPE_PAID_THRESHOLD + 20, dx)));
   };
 
   const handleTouchEnd: React.TouchEventHandler<HTMLDivElement> = () => {
     if (touchStartXRef.current == null) return;
     if (swipeOffset <= -SWIPE_DELETE_THRESHOLD) {
       onDelete();
+    } else if (swipeOffset >= SWIPE_PAID_THRESHOLD) {
+      onMarkPaid();
     }
     setIsDragging(false);
     setSwipeOffset(0);
@@ -70,9 +77,12 @@ export function PayoutRow({
   };
 
   return (
-    <tr className={tableLocked ? 'row-locked' : ''}>
+    <tr className={`${tableLocked ? 'row-locked' : ''}${paid ? ' row-paid' : ''}`}>
       <td className="swipe-cell swipe-cell-full-row" colSpan={4}>
         <div className="swipe-wrapper swipe-wrapper-full-row">
+          <div className="swipe-reveal swipe-reveal-left" aria-hidden="true">
+            <span className="swipe-reveal-label">Paid</span>
+          </div>
           <div className="swipe-reveal" aria-hidden="true">
             <span className="swipe-reveal-label">Delete</span>
           </div>

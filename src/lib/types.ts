@@ -92,6 +92,8 @@ export interface PayoutRowData {
   buyIn: string;
   cashOut: string;
   settled: boolean;
+  /** Marked paid via swipe-to-right; row is highlighted (e.g. velvet green) */
+  paid?: boolean;
   /** Set after first save; used for update (upsert) on subsequent saves */
   dbPlayerId?: string;
 }

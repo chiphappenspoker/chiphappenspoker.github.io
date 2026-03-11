@@ -177,6 +177,7 @@ export function usePayoutCalculator() {
             buyIn: (r.in as string) ?? '',
             cashOut: (r.out as string) ?? '',
             settled: Boolean(r.settled),
+            paid: Boolean(r.paid),
             dbPlayerId: typeof r.playerId === 'string' ? r.playerId : undefined,
           }))
         );
@@ -188,8 +189,8 @@ export function usePayoutCalculator() {
       const defBuyIn = settings.gameSettings.defaultBuyIn || '30';
       setBuyInRaw(defBuyIn);
       setRows([
-        { id: generateId(), name: '', buyIn: defBuyIn, cashOut: '', settled: false },
-        { id: generateId(), name: '', buyIn: defBuyIn, cashOut: '', settled: false },
+        { id: generateId(), name: '', buyIn: defBuyIn, cashOut: '', settled: false, paid: false },
+        { id: generateId(), name: '', buyIn: defBuyIn, cashOut: '', settled: false, paid: false },
       ]);
       setInitialized(true);
     };
@@ -218,6 +219,7 @@ export function usePayoutCalculator() {
         in: r.buyIn,
         out: r.cashOut,
         settled: r.settled,
+        paid: r.paid,
         playerId: r.dbPlayerId,
       })),
       buyIn,
@@ -239,6 +241,7 @@ export function usePayoutCalculator() {
             buyIn: values?.buyIn ?? buyIn,
             cashOut: values?.cashOut ?? '',
             settled: values?.settled ?? false,
+            paid: values?.paid ?? false,
             dbPlayerId: undefined,
           },
         ];
@@ -293,8 +296,8 @@ export function usePayoutCalculator() {
     setSelectedGroupIdInternal(null);
     const defaultBuyIn = settings.gameSettings.defaultBuyIn ?? '30';
     setRows([
-      { id: generateId(), name: '', buyIn: defaultBuyIn, cashOut: '', settled: false },
-      { id: generateId(), name: '', buyIn: defaultBuyIn, cashOut: '', settled: false },
+      { id: generateId(), name: '', buyIn: defaultBuyIn, cashOut: '', settled: false, paid: false },
+      { id: generateId(), name: '', buyIn: defaultBuyIn, cashOut: '', settled: false, paid: false },
     ]);
     setBuyInRaw(defaultBuyIn);
     setCheckboxesVisible(false);
@@ -342,6 +345,7 @@ export function usePayoutCalculator() {
             buyIn: buyIn || '',
             cashOut: '',
             settled: false,
+            paid: false,
             dbPlayerId: undefined,
           },
         ];

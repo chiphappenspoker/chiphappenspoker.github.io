@@ -359,6 +359,13 @@ footer { text-align: center; color: var(--color-muted); font-size: 12px; padding
   color: #fff; font-weight: 600; font-size: 13px;
   z-index: 0;
 }
+/* Paid stripe (swipe right): left side, same size/gradient style as Delete */
+.swipe-reveal-left {
+  right: auto; left: 0;
+  width: 80px;
+  background: linear-gradient(to left, var(--color-bg) 0%, rgba(11, 61, 11, 0.95) 100%);
+  border-radius: var(--radius-lg) 0 0 var(--radius-lg);
+}
 .swipe-content {
   position: relative; z-index: 1;
   background: var(--color-panel);
@@ -377,6 +384,10 @@ footer { text-align: center; color: var(--color-muted); font-size: 12px; padding
 .swipe-wrapper-full-row .swipe-reveal {
   right: 0;
   left: auto;
+}
+.swipe-wrapper-full-row .swipe-reveal-left {
+  left: 0;
+  right: auto;
 }
 .swipe-wrapper-full-row .swipe-content {
   width: 100%;
@@ -462,6 +473,12 @@ footer { text-align: center; color: var(--color-muted); font-size: 12px; padding
 .buyin-stepper-input.zero-value { color: var(--color-muted); }
 .row-locked .buyin-stepper-btn,
 .row-locked .buyin-stepper-input { opacity: 0.45 !important; pointer-events: none; }
+
+/* Paid row: poker-table velvet green highlight */
+/* Opaque velvet green so Paid/Delete stripes stay hidden until user swipes */
+.row-paid .swipe-content,
+.row-paid .payout-row-grid { background: color-mix(in srgb, var(--color-panel) 72%, #0B3D0B); }
+.row-paid td { background: color-mix(in srgb, var(--color-panel) 72%, #0B3D0B); }
 
 /* Side pot row grid: name | bet | won (same % as table = same total width) */
 .sidepot-row-grid {

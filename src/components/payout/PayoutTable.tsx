@@ -294,6 +294,7 @@ export function PayoutTable() {
                     buyIn={row.buyIn}
                     cashOut={row.cashOut}
                     settled={row.settled}
+                    paid={row.paid ?? false}
                     payout={calc.payouts[i] ?? 0}
                     checkboxesVisible={calc.checkboxesVisible}
                     tableLocked={calc.tableLocked}
@@ -303,6 +304,7 @@ export function PayoutTable() {
                     onUpdateSettled={(v) => calc.updateRow(i, 'settled', v)}
                     onAdjust={(delta) => calc.adjustBuyIn(i, delta)}
                     onDelete={() => calc.removeRow(i)}
+                    onMarkPaid={() => calc.updateRow(i, 'paid', !row.paid)}
                   />
                 ))}
               </tbody>
