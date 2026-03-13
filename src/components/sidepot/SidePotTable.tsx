@@ -186,15 +186,61 @@ export function SidePotTable() {
                   />
                 ))}
               </tbody>
-              <tfoot>
-                <tr>
-                  <th>Total</th>
-                  <th className="payout">{fmt(calc.totalBet)}</th>
-                  <th className="payout">{fmt(calc.totalWon)}</th>
-                </tr>
-              </tfoot>
             </table>
           </form>
+
+          {/* Summary card: Total pot, Status, Total bet/won, Difference, Players (mirrors payout calculator card) */}
+          {(() => {
+            const imbalance = calc.totalWon - calc.totalBet;
+            const imbalanceAbs = Math.abs(imbalance);
+            const imbalanceSign = imbalance >= 0 ? '+' : '-';
+            return (
+              <div
+                className={`payout-summary-card card${!calc.isBalanced ? ' payout-summary-card--unbalanced' : ''}`}
+                aria-live="polite"
+              >
+                <div className="card-content payout-summary-card-content">
+                  <div className="payout-summary-main">
+                    <span className="payout-summary-main-label">Total pot</span>
+                    <span className="payout-summary-main-value">{fmt(calc.totalBet)}</span>
+                  </div>
+                  <div className="payout-summary-sub">
+                    <div className="payout-summary-item">
+                      <span className="payout-summary-label">Total bet</span>
+                      <span className="payout-summary-value">{fmt(calc.totalBet)}</span>
+                    </div>
+                    <div className="payout-summary-item">
+                      <span className="payout-summary-label">Total won</span>
+                      <span className="payout-summary-value">{fmt(calc.totalWon)}</span>
+                    </div>
+                    {!calc.isBalanced && (
+                      <div className="payout-summary-item">
+                        <span className="payout-summary-label">Difference</span>
+                        <span
+                          className="payout-summary-value payout-summary-difference"
+                          title="|Total won − Total bet|"
+                        >
+                          {imbalanceSign}{fmt(imbalanceAbs)}
+                        </span>
+                      </div>
+                    )}
+                    <div className="payout-summary-item">
+                      <span className="payout-summary-label">Status</span>
+                      <span className={`payout-summary-value payout-summary-status ${calc.isBalanced ? 'ok' : 'warn'}`}>
+                        {calc.isBalanced ? 'Balanced' : 'Unbalanced'}
+                      </span>
+                    </div>
+                    <div className="payout-summary-item">
+                      <span className="payout-summary-label">Players</span>
+                      <span className="payout-summary-value">
+                        {calc.rows.filter((r) => r.name.trim()).length}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            );
+          })()}
         </div>
 
         {/* Pot Display */}
