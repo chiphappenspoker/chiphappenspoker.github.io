@@ -397,6 +397,7 @@ export function usePayoutCalculator() {
     currentSessionId,
     setSavedSession,
     selectedGroupId,
+    selectedGroup,
     setSelectedGroupId,
     totalIn,
     totalOut,

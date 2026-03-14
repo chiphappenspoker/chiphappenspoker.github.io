@@ -280,23 +280,50 @@ footer { text-align: center; color: var(--color-muted); font-size: 12px; padding
 }
 .boards-card .boards-select { width: 5ch; height: 32px; font-size: 13px; box-sizing: border-box; }
 
-/* Payout: Buy-in card (above table; converted from header control) */
+/* Payout: Buy-in card (above table; same design language as summary card) */
 .buyin-card { margin-bottom: var(--space-md); }
 .buyin-card .card-content { padding: var(--space-sm) var(--space-md); }
 .buyin-card-content {
   display: flex;
-  align-items: center;
-  justify-content: flex-end;
+  flex-direction: row;
+  flex-wrap: wrap;
   gap: var(--space-md);
+  justify-content: space-between;
+  align-items: center;
 }
-.buyin-card-label {
-  font-size: 11px;
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-  color: var(--color-muted);
-  font-weight: 600;
+.buyin-card-main { display: flex; flex-direction: column; align-items: flex-start; gap: 1px; padding-left: var(--space-md); }
+.buyin-card-main-label { font-size: 10px; text-transform: uppercase; letter-spacing: 0.5px; color: var(--color-muted); }
+.buyin-card-main-value { font-weight: 800; font-size: 1.35rem; line-height: 1.15; }
+.buyin-card-sub {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-sm) var(--space-md);
+  align-items: center;
+  justify-content: center;
+  padding-right: var(--space-md);
 }
+.buyin-card-item { display: flex; flex-direction: column; align-items: center; gap: 1px; min-width: 3.5rem; }
+.buyin-card-label { font-size: 10px; text-transform: uppercase; letter-spacing: 0.5px; color: var(--color-muted); }
 .buyin-card .buyin-input { width: 8ch; height: 32px; font-size: 13px; text-align: center; box-sizing: border-box; }
+
+/* Layout A: main-sub — Group left, Buy-in right with border (like summary card) */
+.buyin-card--layout-main-sub .buyin-card-sub {
+  border-left: 1px solid var(--color-outline);
+  padding-left: var(--space-md);
+  justify-content: flex-end;
+}
+
+/* Layout B: equal — Group and Buy-in as two equal columns, no border */
+.buyin-card--layout-equal .buyin-card-content { justify-content: flex-start; }
+.buyin-card--layout-equal .buyin-card-main { flex: 1; min-width: 0; }
+.buyin-card--layout-equal .buyin-card-sub { flex: 1; min-width: 0; justify-content: flex-end; }
+
+/* Layout C: inline — single row of items (Group item, Buy-in item) centered */
+.buyin-card--layout-inline .buyin-card-content { justify-content: center; }
+.buyin-card--layout-inline .buyin-card-main { flex: none; }
+.buyin-card--layout-inline .buyin-card-sub { flex: none; border-left: none; padding-left: 0; }
 
 /* Payout summary card (replaces Total row) */
 .payout-summary-card { margin-top: var(--space-md); }
