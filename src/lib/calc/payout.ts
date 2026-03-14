@@ -19,8 +19,9 @@ export function calculatePayouts(rows: PayoutRowData[]): PayoutResult {
   const payouts: number[] = [];
 
   for (const row of rows) {
-    const inv = parseNum(row.buyIn);
-    let outv = parseNum(row.cashOut);
+    const hasName = row.name.trim().length > 0;
+    const inv = hasName ? parseNum(row.buyIn) : 0;
+    let outv = hasName ? parseNum(row.cashOut) : 0;
     if (outv < 0) outv = 0;
     const payout = outv - inv;
     payouts.push(payout);

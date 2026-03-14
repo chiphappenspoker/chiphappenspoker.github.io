@@ -4,7 +4,6 @@ import { useState, useRef, useEffect } from 'react';
 import { useAuth } from '@/lib/auth/AuthProvider';
 import { ProfilePanel } from '../settings/ProfilePanel';
 
-import { APP_VERSION } from '@/lib/constants';
 import { SettingsModal } from '../settings/SettingsModal';
 import { SignInModal } from './SignInModal';
 import { SelectGroupModal } from '../payout/SelectGroupModal';
@@ -21,7 +20,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const accountMenuRef = useRef<HTMLDivElement>(null);
   const { user, signOut } = useAuth();
   const { settings } = useSettings();
-  const { openSelectGroupModal, setOpenSelectGroupModal } = useSelectGroupModal();
+  const { openSelectGroupModal, setOpenSelectGroupModal, notifyGroupSelected, clearGroupSelectedCallback } = useSelectGroupModal();
 
   // After first sign-in, open profile modal so user can set name and revtag
   useEffect(() => {
@@ -122,11 +121,15 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       )}
       <SignInModal open={signInOpen} onClose={() => setSignInOpen(false)} />
       {profileOpen && <ProfilePanelWrapper onClose={() => setProfileOpen(false)} />}
-      <SelectGroupModal open={openSelectGroupModal} onClose={() => setOpenSelectGroupModal(false)} />
+      <SelectGroupModal
+        open={openSelectGroupModal}
+        onClose={() => {
+          clearGroupSelectedCallback();
+          setOpenSelectGroupModal(false);
+        }}
+        onGroupSelected={notifyGroupSelected}
+      />
       {children}
-      <footer className="text-center text-muted text-xs py-5">
-        {APP_VERSION}
-      </footer>
       <SettingsModal />
     </>
   );

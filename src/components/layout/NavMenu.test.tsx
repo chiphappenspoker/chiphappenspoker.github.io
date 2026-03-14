@@ -10,9 +10,6 @@ vi.mock('next/link', () => ({
 vi.mock('@/hooks/useSettings', () => ({
   useSettings: () => ({ openSettingsModal: vi.fn() }),
 }));
-vi.mock('@/hooks/useSelectGroupModal', () => ({
-  useSelectGroupModal: () => ({ setOpenSelectGroupModal: vi.fn() }),
-}));
 
 describe('NavMenu', () => {
   it('renders menu button with aria-label', () => {
@@ -29,7 +26,6 @@ describe('NavMenu', () => {
     expect(screen.getByRole('link', { name: /^history$/i })).toHaveAttribute('href', '/history');
     expect(screen.getByRole('link', { name: /leaderboard/i })).toHaveAttribute('href', '/leaderboard');
     expect(screen.getByRole('link', { name: /^stats$/i })).toHaveAttribute('href', '/stats');
-    expect(screen.getByRole('button', { name: /select group/i })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /settings/i })).toBeInTheDocument();
   });
 

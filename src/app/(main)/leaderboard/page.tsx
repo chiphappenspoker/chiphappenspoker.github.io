@@ -247,26 +247,8 @@ export default function LeaderboardPage() {
             <p className="muted-text">No data for this group and period.</p>
           ) : (
             <div className="leaderboard-carousel" role="region" aria-label="Leaderboard by category">
-              <div className="leaderboard-carousel-header">
-                <span className="leaderboard-category-title">
-                  {currentCategory?.label ?? ''}
-                </span>
-              </div>
-              <div className="leaderboard-dots" role="tablist" aria-label="Leaderboard category">
-                {LEADERBOARD_CATEGORIES.map((cat, i) => (
-                  <button
-                    key={cat.id}
-                    type="button"
-                    role="tab"
-                    aria-selected={i === categoryIndex}
-                    aria-label={i === categoryIndex ? cat.label : `Go to ${cat.label}`}
-                    className={`leaderboard-dot ${i === categoryIndex ? 'leaderboard-dot-active' : ''}`}
-                    onClick={() => setCategoryIndex(i)}
-                  />
-                ))}
-              </div>
               <div
-                className="leaderboard-nav-row"
+                className="leaderboard-carousel-header"
                 onTouchStart={(e) => {
                   touchStartXRef.current = e.touches[0]?.clientX ?? 0;
                 }}
@@ -286,7 +268,32 @@ export default function LeaderboardPage() {
                 >
                   ‹
                 </button>
-                <div className="leaderboard-table-wrap">
+                <span className="leaderboard-category-title">
+                  {currentCategory?.label ?? ''}
+                </span>
+                <button
+                  type="button"
+                  className="leaderboard-arrow"
+                  aria-label="Next category"
+                  onClick={() => setCategoryIndex((i) => (i + 1) % 5)}
+                >
+                  ›
+                </button>
+              </div>
+              <div className="leaderboard-dots" role="tablist" aria-label="Leaderboard category">
+                {LEADERBOARD_CATEGORIES.map((cat, i) => (
+                  <button
+                    key={cat.id}
+                    type="button"
+                    role="tab"
+                    aria-selected={i === categoryIndex}
+                    aria-label={i === categoryIndex ? cat.label : `Go to ${cat.label}`}
+                    className={`leaderboard-dot ${i === categoryIndex ? 'leaderboard-dot-active' : ''}`}
+                    onClick={() => setCategoryIndex(i)}
+                  />
+                ))}
+              </div>
+              <div className="leaderboard-table-wrap">
                   {displayRows.length === 0 ? (
                     <p className="muted-text">
                       {currentCategory?.id === 'sessions'
@@ -330,15 +337,6 @@ export default function LeaderboardPage() {
               </table>
             </div>
                   )}
-                </div>
-                <button
-                  type="button"
-                  className="leaderboard-arrow"
-                  aria-label="Next category"
-                  onClick={() => setCategoryIndex((i) => (i + 1) % 5)}
-                >
-                  ›
-                </button>
               </div>
             </div>
           )}

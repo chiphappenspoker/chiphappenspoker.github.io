@@ -3,7 +3,6 @@
 import { useState, useRef, useEffect } from 'react';
 import Link from 'next/link';
 import { useSettings } from '@/hooks/useSettings';
-import { useSelectGroupModal } from '@/hooks/useSelectGroupModal';
 
 interface NavMenuProps {
   activePage?: 'payout' | 'sidepot' | 'history' | 'leaderboard' | 'stats';
@@ -14,7 +13,6 @@ export function NavMenu({ activePage = 'payout', playerNames = [] }: NavMenuProp
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
   const { openSettingsModal } = useSettings();
-  const { setOpenSelectGroupModal } = useSelectGroupModal();
 
   useEffect(() => {
     const handler = (e: MouseEvent) => {
@@ -61,16 +59,6 @@ export function NavMenu({ activePage = 'payout', playerNames = [] }: NavMenuProp
           <Link href="/stats" onClick={() => setOpen(false)}>
             Stats
           </Link>
-          <button
-            className="menu-link"
-            onClick={(e) => {
-              e.preventDefault();
-              setOpen(false);
-              setOpenSelectGroupModal(true);
-            }}
-          >
-            Select Group
-          </button>
           <button
             className="menu-link"
             onClick={(e) => {

@@ -270,6 +270,20 @@ export function useSidePotCalculator() {
     });
   }, []);
 
+  /** Set table rows to exactly the selected names; preserves existing row data (bet) when a name already exists. */
+  const setRowsFromSelectedNames = useCallback((names: string[]) => {
+    const trimmed = names.map((n) => n.trim()).filter(Boolean);
+    if (trimmed.length === 0) return;
+    setRows((prev) => {
+      const byName = new Map(prev.map((r) => [r.name.trim().toLowerCase(), r]));
+      return trimmed.map((name) => {
+        const existing = byName.get(name.toLowerCase());
+        if (existing) return { ...existing, name };
+        return { id: generateId(), name, bet: '' };
+      });
+    });
+  }, []);
+
   const getShareUrl = useCallback(async () => {
     const shareData = {
       rows: rows.map((r) => ({ name: r.name, bet: r.bet })),
@@ -299,8 +313,10 @@ export function useSidePotCalculator() {
     clearTable,
     showSuspects,
     toggleSuspects,
+    allSuspects,
     availableSuspects,
     addSuspectToRow,
+    setRowsFromSelectedNames,
     getShareUrl,
     initialized,
     fmt,

@@ -8,9 +8,11 @@ import { PAYOUT_STORAGE_KEY, SELECTED_GROUP_CHANGED_EVENT } from '@/lib/constant
 interface SelectGroupModalProps {
   open: boolean;
   onClose: () => void;
+  /** Called when user selects a group (not "No group"). */
+  onGroupSelected?: () => void;
 }
 
-export function SelectGroupModal({ open, onClose }: SelectGroupModalProps) {
+export function SelectGroupModal({ open, onClose, onGroupSelected }: SelectGroupModalProps) {
   const { groups, loggedIn } = useGroups();
   const { openSettingsToNewGroup } = useSettings();
 
@@ -28,6 +30,7 @@ export function SelectGroupModal({ open, onClose }: SelectGroupModalProps) {
     if (typeof window !== 'undefined') {
       window.dispatchEvent(new CustomEvent(SELECTED_GROUP_CHANGED_EVENT, { detail: { selectedGroupId: groupId } }));
     }
+    if (groupId) onGroupSelected?.();
     onClose();
   };
 

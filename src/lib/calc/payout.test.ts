@@ -49,6 +49,19 @@ describe('calculatePayouts', () => {
     expect(result.isBalanced).toBe(true);
   });
 
+  it('treats rows with no player name as 0 buy-in and 0 cash-out', () => {
+    const rows = [
+      row('1', 'Alice', '30', '50', true),
+      row('2', '', '30', '20', false),
+      row('3', 'Bob', '30', '10', true),
+    ];
+    const result = calculatePayouts(rows);
+    expect(result.totalIn).toBe(60);
+    expect(result.totalOut).toBe(60);
+    expect(result.payouts).toEqual([20, 0, -20]);
+    expect(result.isBalanced).toBe(true);
+  });
+
   it('handles locale-aware buy-in/cash-out (comma decimal)', () => {
     const rows = [
       row('1', 'Alice', '30,50', '45,25', true),

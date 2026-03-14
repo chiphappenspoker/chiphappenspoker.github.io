@@ -17,47 +17,36 @@ export function PayoutTable() {
   const calc = usePayoutCalculator();
   const { showToast } = useToast();
   const { user } = useAuth();
-  const { setOpenSelectGroupModal } = useSelectGroupModal();
-  const hasOpenedForNoGroupRef = useRef(false);
+  const { setOpenSelectGroupModal, setGroupSelectedCallback } = useSelectGroupModal();
   const [savingSession, setSavingSession] = useState(false);
   const [endSessionModalOpen, setEndSessionModalOpen] = useState(false);
   /** When false, show New Session; when true (and user), show End Session. Toggles on New Session click and when End Session modal closes. */
   const [sessionInProgress, setSessionInProgress] = useState(false);
-
-  // When user has a group selected, allow auto-open again after they clear
-  useEffect(() => {
-    if (calc.selectedGroupId) hasOpenedForNoGroupRef.current = false;
-  }, [calc.selectedGroupId]);
-
-  // Prompt to select a group when app loads (or returns to payout page) with no group selected
-  useEffect(() => {
-    if (!calc.initialized || calc.selectedGroupId || hasOpenedForNoGroupRef.current) return;
-    hasOpenedForNoGroupRef.current = true;
-    setOpenSelectGroupModal(true);
-  }, [calc.initialized, calc.selectedGroupId, setOpenSelectGroupModal]);
+  const [usualSuspectsModalOpen, setUsualSuspectsModalOpen] = useState(false);
+  /** Checked names in Usual Suspects modal; synced from table when modal opens. */
+  const [suspectsChecked, setSuspectsChecked] = useState<Set<string>>(new Set());
 
   const openEndSessionModal = () => {
-    // "End session" includes settle flow: lock table + show settlement UI
-    if (!calc.checkboxesVisible) calc.toggleSettle();
     setEndSessionModalOpen(true);
   };
 
   const closeEndSessionModal = () => {
     setEndSessionModalOpen(false);
     setSessionInProgress(false);
-    // exit settle mode when leaving end-session flow
-    if (calc.checkboxesVisible) calc.toggleSettle();
   };
+
+  const tableLocked = endSessionModalOpen;
 
   const handleClear = async () => {
     if (calc.currentSessionId) await clearQueueEntriesForSession(calc.currentSessionId);
     calc.clearTable();
-    setOpenSelectGroupModal(true);
+    setSessionInProgress(false);
   };
 
   const handleNewSessionClick = async () => {
     await handleClear();
-    if (user) setSessionInProgress(true);
+    setGroupSelectedCallback(() => setSessionInProgress(true));
+    setOpenSelectGroupModal(true);
   };
 
   const handleSaveSession = async () => {
@@ -108,7 +97,7 @@ export function PayoutTable() {
             buy_in: buyIn,
             cash_out: cashOut,
             net_result: cashOut - buyIn,
-            settled: row.settled,
+            settled: row.paid ?? row.settled,
             created_at: now,
             updated_at: now,
           });
@@ -199,17 +188,27 @@ export function PayoutTable() {
               />
             </svg>
           </span>
-          <div
-            className={`status ${calc.isBalanced ? 'ok' : 'warn'}`}
-            aria-live="polite"
-          >
-            <span className="dot" />
-            <span className="status-text">
-              {calc.isBalanced ? 'Balanced' : 'Unbalanced'}
-            </span>
-          </div>
           <span className="spacer" />
           <OptionsDropdown onShare={handleShare} />
+        </div>
+
+        {/* Buy-in card (above table; converted from header control) */}
+        <div className="buyin-card card">
+          <div className="card-content buyin-card-content">
+            <label className="buyin-card-label" htmlFor="buyInInput">
+              Buy-In
+            </label>
+            <input
+              id="buyInInput"
+              className="input-field buyin-input"
+              type="text"
+              inputMode="numeric"
+              value={calc.buyIn}
+              disabled={tableLocked}
+              onChange={(e) => calc.setBuyIn(e.target.value)}
+              onClick={(e) => (e.target as HTMLInputElement).select()}
+            />
+          </div>
         </div>
 
         {/* Table */}
@@ -224,62 +223,6 @@ export function PayoutTable() {
               </colgroup>
               <thead>
                 <tr>
-                  <th className="controls-cell" colSpan={4}>
-                    <div className="controls">
-                      <div className="controls-session-center" aria-hidden="true" />
-                      <div className="controls-session-wrap">
-                        {(!user || !sessionInProgress) ? (
-                          <button
-                            className="btn btn-secondary btn-session-action"
-                            type="button"
-                            disabled={calc.tableLocked}
-                            onClick={handleNewSessionClick}
-                            style={{ display: 'inline-flex', alignItems: 'center', gap: '0.35rem' }}
-                          >
-                            <span aria-hidden="true">
-                              <svg width="18" height="18" viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg" role="img">
-                                <title>Poker chip</title>
-                                <circle cx="32" cy="32" r="30" fill="#d4a832" stroke="#b8860b" strokeWidth="3" />
-                                <circle cx="32" cy="32" r="22" fill="none" stroke="#b8860b" strokeWidth="2" />
-                                <circle cx="32" cy="32" r="14" fill="none" stroke="#b8860b" strokeWidth="1.5" />
-                              </svg>
-                            </span>
-                            New session
-                          </button>
-                        ) : (
-                        <button
-                          className="btn btn-secondary btn-session-action"
-                          type="button"
-                          disabled={calc.tableLocked || calc.rows.length === 0}
-                          onClick={openEndSessionModal}
-                        >
-                          🏁 End session
-                        </button>
-                        )}
-                      </div>
-                      <div className="controls-right-wrap">
-                        <div className="buyin-container">
-                        <label className="buyin-label" htmlFor="buyInInput">
-                          Buy-In
-                        </label>
-                        <input
-                          id="buyInInput"
-                          className="input-field buyin-input"
-                          type="text"
-                          inputMode="numeric"
-                          value={calc.buyIn}
-                          disabled={calc.tableLocked}
-                          onChange={(e) => calc.setBuyIn(e.target.value)}
-                          onClick={(e) =>
-                            (e.target as HTMLInputElement).select()
-                          }
-                        />
-                        </div>
-                      </div>
-                    </div>
-                  </th>
-                </tr>
-                <tr>
                   <th>Name</th>
                   <th>In</th>
                   <th>Out</th>
@@ -291,70 +234,174 @@ export function PayoutTable() {
                   <PayoutRow
                     key={row.id}
                     name={row.name}
-                    buyIn={row.buyIn}
+                    buyIn={row.name.trim() ? row.buyIn : '0'}
                     cashOut={row.cashOut}
-                    settled={row.settled}
                     paid={row.paid ?? false}
                     payout={calc.payouts[i] ?? 0}
-                    checkboxesVisible={calc.checkboxesVisible}
-                    tableLocked={calc.tableLocked}
+                    tableLocked={tableLocked}
                     onUpdateName={(v) => calc.updateRow(i, 'name', v)}
                     onUpdateBuyIn={(v) => calc.updateRow(i, 'buyIn', v)}
                     onUpdateCashOut={(v) => calc.updateRow(i, 'cashOut', v)}
-                    onUpdateSettled={(v) => calc.updateRow(i, 'settled', v)}
                     onAdjust={(delta) => calc.adjustBuyIn(i, delta)}
                     onDelete={() => calc.removeRow(i)}
                     onMarkPaid={() => calc.updateRow(i, 'paid', !row.paid)}
                   />
                 ))}
               </tbody>
-              <tfoot>
-                <tr>
-                  <th>Total</th>
-                  <th className="payout">{fmtOptionalDecimals(calc.totalIn)}</th>
-                  <th className="payout">{fmtOptionalDecimals(calc.totalOut)}</th>
-                  <th className="payout">{fmtOptionalDecimals(calc.totalPayout)}</th>
-                </tr>
-              </tfoot>
             </table>
           </form>
-        </div>
 
-        {/* Action Row */}
+        {/* Action Row: New session, End session, Add player, Usual suspects, Clear table */}
         <div className="action-row">
           <div className="action-buttons">
             <button
-              className="btn btn-secondary btn-session-action"
+              className="btn btn-secondary btn-session-action btn-icon-only"
               type="button"
-              disabled={calc.tableLocked || calc.rows.length >= 32}
+              disabled={tableLocked || calc.rows.length >= 32}
               onClick={() => calc.addRow()}
+              aria-label="Add player"
             >
-              ➕ Add Player
+              <span aria-hidden="true">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" xmlns="http://www.w3.org/2000/svg">
+                  <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" />
+                  <circle cx="9" cy="7" r="4" />
+                  <line x1="19" y1="8" x2="19" y2="14" />
+                  <line x1="22" y1="11" x2="16" y2="11" />
+                </svg>
+              </span>
             </button>
             <button
-              className="btn btn-secondary btn-session-action"
+              className="btn btn-secondary btn-session-action btn-icon-only"
               type="button"
-              disabled={calc.tableLocked}
-              onClick={calc.toggleSuspects}
+              disabled={tableLocked}
+              onClick={() => {
+                setSuspectsChecked(
+                  new Set(calc.rows.map((r) => r.name.trim()).filter(Boolean))
+                );
+                setUsualSuspectsModalOpen(true);
+              }}
+              aria-label="Usual suspects"
             >
-              👥 Usual Suspects
+              <span aria-hidden="true">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" xmlns="http://www.w3.org/2000/svg">
+                  <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
+                  <circle cx="9" cy="7" r="4" />
+                  <path d="M23 21v-2a4 4 0 0 0-3-3.87" />
+                  <path d="M16 3.13a4 4 0 0 1 0 7.75" />
+                </svg>
+              </span>
+            </button>
+            <span className="action-btn-spacer" aria-hidden="true" />
+            <button
+              className="btn btn-secondary btn-session-action btn-icon-only"
+              type="button"
+              disabled={tableLocked || sessionInProgress}
+              onClick={handleNewSessionClick}
+              aria-label="New session"
+              title={sessionInProgress ? 'End session (Save or Discard) to start a new session' : undefined}
+            >
+              <span aria-hidden="true">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" xmlns="http://www.w3.org/2000/svg">
+                  <path d="M21 12a9 9 0 1 1-9-9c2.52 0 4.93 1 6.74 2.74L21 8" />
+                  <path d="M21 3v5h-5" />
+                </svg>
+              </span>
+            </button>
+            {/* End session disabled until user selects a group (e.g. after New session) */}
+            <button
+              className="btn btn-secondary btn-session-action btn-icon-only"
+              type="button"
+              disabled={tableLocked || calc.rows.length === 0 || !calc.selectedGroupId}
+              onClick={openEndSessionModal}
+              aria-label="End session"
+              title={!calc.selectedGroupId ? 'Select a group (New session) first' : undefined}
+            >
+              <span aria-hidden="true">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" xmlns="http://www.w3.org/2000/svg">
+                  <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" />
+                  <polyline points="22 4 12 14.01 9 11.01" />
+                </svg>
+              </span>
+            </button>
+            <span className="action-btn-spacer" aria-hidden="true" />
+            <button
+              className="btn btn-secondary btn-session-action btn-icon-only"
+              type="button"
+              disabled={tableLocked}
+              onClick={handleClear}
+              aria-label="Clear table"
+            >
+              <span aria-hidden="true">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" xmlns="http://www.w3.org/2000/svg">
+                  <polyline points="3 6 5 6 21 6" />
+                  <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+                  <line x1="10" y1="11" x2="10" y2="17" />
+                  <line x1="14" y1="11" x2="14" y2="17" />
+                </svg>
+              </span>
             </button>
           </div>
 
-          {/* Usual Suspects */}
-          {calc.showSuspects && (
-            <div className="suspects-list" style={{ display: 'flex' }}>
-              {calc.availableSuspects.map((name) => (
-                <span
-                  key={name}
-                  className="player-chip"
-                  onClick={() => calc.addSuspectToRow(name)}
-                >
-                  {name}
+          </div>
+
+          {/* Summary card: Total Pot, Balanced/Unbalanced, missing amount, player count */}
+          {(() => {
+            const imbalance = calc.totalIn - calc.totalOut;
+            const imbalanceAbs = Math.abs(imbalance);
+            const imbalanceSign = imbalance >= 0 ? '+' : '-';
+            return (
+          <div
+            className={`payout-summary-card card${calc.isBalanced ? ' payout-summary-card--balanced' : ' payout-summary-card--unbalanced'}`}
+            aria-live="polite"
+          >
+            <div className="card-content payout-summary-card-content">
+              <div className="payout-summary-main">
+                <span className="payout-summary-main-label">Total pot</span>
+                <span className="payout-summary-main-value">
+                  {fmtOptionalDecimals(calc.totalIn)} {calc.currency}
                 </span>
-              ))}
+              </div>
+              <div className="payout-summary-sub">
+                <div className="payout-summary-item">
+                  <span className="payout-summary-label">Total in</span>
+                  <span className="payout-summary-value">
+                    {fmtOptionalDecimals(calc.totalIn)} {calc.currency}
+                  </span>
+                </div>
+                <div className="payout-summary-item">
+                  <span className="payout-summary-label">Total out</span>
+                  <span className="payout-summary-value">
+                    {fmtOptionalDecimals(calc.totalOut)} {calc.currency}
+                  </span>
+                </div>
+                {!calc.isBalanced && (
+                  <div className="payout-summary-item">
+                    <span className="payout-summary-label">Difference</span>
+                    <span
+                      className="payout-summary-value payout-summary-difference"
+                      title="|Total in − Total out|"
+                    >
+                      {imbalanceSign}{fmtOptionalDecimals(imbalanceAbs)} {calc.currency}
+                    </span>
+                  </div>
+                )}
+                <div className="payout-summary-item">
+                  <span className="payout-summary-label">Status</span>
+                  <span className={`payout-summary-value payout-summary-status ${calc.isBalanced ? 'ok' : 'warn'}`}>
+                    {calc.isBalanced ? 'Balanced' : 'Unbalanced'}
+                  </span>
+                </div>
+                <div className="payout-summary-item">
+                  <span className="payout-summary-label">Players</span>
+                  <span className="payout-summary-value">
+                    {calc.rows.filter((r) => r.name.trim()).length}
+                  </span>
+                </div>
+              </div>
             </div>
-          )}
+          </div>
+            );
+          })()}
         </div>
       </div>
 
@@ -394,7 +441,7 @@ export function PayoutTable() {
                   type="button"
                   className="btn btn-secondary"
                   disabled={savingSession}
-                  onClick={closeEndSessionModal}
+                  onClick={() => setEndSessionModalOpen(false)}
                 >
                   Discard
                 </button>
@@ -412,6 +459,97 @@ export function PayoutTable() {
                   }}
                 >
                   {savingSession ? 'Saving…' : 'Save'}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Usual Suspects modal: checkboxes to choose which players appear in the table */}
+      {usualSuspectsModalOpen && (
+        <div
+          className="modal active"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="usual-suspects-title"
+        >
+          <div
+            className="modal-overlay"
+            onClick={() => setUsualSuspectsModalOpen(false)}
+          />
+          <div className="modal-content" role="document">
+            <div className="modal-header">
+              <h2 id="usual-suspects-title" className="modal-title">
+                Usual suspects
+              </h2>
+              <button
+                type="button"
+                className="modal-close"
+                onClick={() => setUsualSuspectsModalOpen(false)}
+                aria-label="Close"
+              >
+                ✕
+              </button>
+            </div>
+            <div className="modal-body">
+              {calc.allSuspects.length === 0 ? (
+                <p className="muted-text">
+                  No players listed. Select a group (New session) or add names in
+                  Settings → Usual suspects.
+                </p>
+              ) : (
+                <ul className="usual-suspects-modal-list" style={{ listStyle: 'none', padding: 0, margin: 0 }}>
+                  {calc.allSuspects.map((name) => (
+                    <li key={name} style={{ marginBottom: '0.5rem' }}>
+                      <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer' }}>
+                        <input
+                          type="checkbox"
+                          checked={suspectsChecked.has(name)}
+                          onChange={(e) => {
+                            setSuspectsChecked((prev) => {
+                              const next = new Set(prev);
+                              if (e.target.checked) next.add(name);
+                              else next.delete(name);
+                              return next;
+                            });
+                          }}
+                        />
+                        <span>{name}</span>
+                      </label>
+                    </li>
+                  ))}
+                </ul>
+              )}
+              <div
+                style={{
+                  display: 'flex',
+                  gap: '0.75rem',
+                  justifyContent: 'flex-end',
+                  flexWrap: 'wrap',
+                  marginTop: '1rem',
+                }}
+              >
+                <button
+                  type="button"
+                  className="btn btn-secondary"
+                  onClick={() => setUsualSuspectsModalOpen(false)}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  className="btn btn-primary"
+                  disabled={calc.allSuspects.length === 0 || suspectsChecked.size === 0}
+                  onClick={() => {
+                    const ordered = calc.allSuspects.filter((n) =>
+                      suspectsChecked.has(n)
+                    );
+                    calc.setRowsFromSelectedNames(ordered);
+                    setUsualSuspectsModalOpen(false);
+                  }}
+                >
+                  Apply
                 </button>
               </div>
             </div>

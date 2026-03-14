@@ -11,15 +11,12 @@ interface PayoutRowProps {
   name: string;
   buyIn: string;
   cashOut: string;
-  settled: boolean;
   paid: boolean;
   payout: number;
-  checkboxesVisible: boolean;
   tableLocked: boolean;
   onUpdateName: (v: string) => void;
   onUpdateBuyIn: (v: string) => void;
   onUpdateCashOut: (v: string) => void;
-  onUpdateSettled: (v: boolean) => void;
   onAdjust: (delta: number) => void;
   onDelete: () => void;
   onMarkPaid: () => void;
@@ -29,15 +26,12 @@ export function PayoutRow({
   name,
   buyIn,
   cashOut,
-  settled,
   paid,
   payout,
-  checkboxesVisible,
   tableLocked,
   onUpdateName,
   onUpdateBuyIn,
   onUpdateCashOut,
-  onUpdateSettled,
   onAdjust,
   onDelete,
   onMarkPaid,
@@ -96,17 +90,7 @@ export function PayoutRow({
             onTouchMove={handleTouchMove}
             onTouchEnd={handleTouchEnd}
           >
-            <div
-              className={`name-cell-wrapper${
-                !checkboxesVisible ? ' hidden-checkboxes' : ''
-              }`}
-            >
-              <input
-                type="checkbox"
-                checked={settled}
-                title="Settled"
-                onChange={(e) => onUpdateSettled(e.target.checked)}
-              />
+            <div className="name-cell-wrapper">
               <input
                 className="input-field name-input"
                 type="text"

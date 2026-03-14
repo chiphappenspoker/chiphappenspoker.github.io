@@ -27,7 +27,6 @@ export function usePayoutCalculator() {
   /** Session id after first save; null until then or after clear. Subsequent saves upsert this session. */
   const [currentSessionId, setCurrentSessionId] = useState<string | null>(null);
   const [selectedGroupIdInternal, setSelectedGroupIdInternal] = useState<string | null>(null);
-  const [checkboxesVisible, setCheckboxesVisible] = useState(false);
   const [showSuspects, setShowSuspects] = useState(false);
   const [initialized, setInitialized] = useState(false);
 
@@ -52,7 +51,6 @@ export function usePayoutCalculator() {
   const result = useMemo(() => calculatePayouts(rows), [rows]);
   const { totalIn, totalOut, totalPayout, isBalanced, payouts } = result;
 
-  const tableLocked = checkboxesVisible;
   const settlementMode = effectiveSettlementMode;
   const currency = effectiveCurrency;
 
@@ -154,6 +152,7 @@ export function usePayoutCalculator() {
                 buyIn: r.in ?? '',
                 cashOut: r.out ?? '',
                 settled: r.settled ?? false,
+                paid: r.settled ?? false,
               }))
             );
             setInitialized(true);
@@ -177,7 +176,7 @@ export function usePayoutCalculator() {
             buyIn: (r.in as string) ?? '',
             cashOut: (r.out as string) ?? '',
             settled: Boolean(r.settled),
-            paid: Boolean(r.paid),
+            paid: Boolean(r.paid ?? r.settled),
             dbPlayerId: typeof r.playerId === 'string' ? r.playerId : undefined,
           }))
         );
@@ -300,7 +299,6 @@ export function usePayoutCalculator() {
       { id: generateId(), name: '', buyIn: defaultBuyIn, cashOut: '', settled: false, paid: false },
     ]);
     setBuyInRaw(defaultBuyIn);
-    setCheckboxesVisible(false);
     setShowSuspects(false);
     removeLocalStorage(PAYOUT_STORAGE_KEY);
   }, [settings.gameSettings.defaultBuyIn]);
@@ -314,11 +312,6 @@ export function usePayoutCalculator() {
         dbPlayerId: playerIds[i],
       }))
     );
-  }, []);
-
-  const toggleSettle = useCallback(() => {
-    setShowSuspects(false);
-    setCheckboxesVisible((prev) => !prev);
   }, []);
 
   const toggleSuspects = useCallback(() => {
@@ -354,13 +347,38 @@ export function usePayoutCalculator() {
     [buyIn]
   );
 
+  /** Set table rows to exactly the selected names; preserves existing row data (buyIn, cashOut) when a name already exists. */
+  const setRowsFromSelectedNames = useCallback(
+    (names: string[]) => {
+      const trimmed = names.map((n) => n.trim()).filter(Boolean);
+      if (trimmed.length === 0) return;
+      setRows((prev) => {
+        const byName = new Map(prev.map((r) => [r.name.trim().toLowerCase(), r]));
+        return trimmed.map((name) => {
+          const existing = byName.get(name.toLowerCase());
+          if (existing) return { ...existing, name };
+          return {
+            id: generateId(),
+            name,
+            buyIn: fmtInt(parseNum(buyIn)),
+            cashOut: '',
+            settled: false,
+            paid: false,
+            dbPlayerId: undefined,
+          };
+        });
+      });
+    },
+    [buyIn]
+  );
+
   const getShareUrl = useCallback(async () => {
     const shareData = {
       rows: rows.map((r) => ({
         name: r.name,
         in: r.buyIn,
         out: r.cashOut,
-        settled: r.settled,
+        settled: r.paid ?? r.settled,
       })),
       buyIn,
     };
@@ -390,13 +408,12 @@ export function usePayoutCalculator() {
     updateRow,
     adjustBuyIn,
     clearTable,
-    checkboxesVisible,
-    toggleSettle,
-    tableLocked,
     showSuspects,
     toggleSuspects,
+    allSuspects,
     availableSuspects,
     addSuspectToRow,
+    setRowsFromSelectedNames,
     getShareUrl,
     getPlayerNames,
     settlementMode,
