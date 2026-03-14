@@ -28,6 +28,7 @@ export function PayoutTable() {
   const [usualSuspectsModalOpen, setUsualSuspectsModalOpen] = useState(false);
   /** Checked names in Usual Suspects modal; synced from table when modal opens. */
   const [suspectsChecked, setSuspectsChecked] = useState<Set<string>>(new Set());
+  const [resetTableConfirmOpen, setResetTableConfirmOpen] = useState(false);
 
   const openEndSessionModal = () => {
     setEndSessionModalOpen(true);
@@ -46,10 +47,19 @@ export function PayoutTable() {
     setSessionInProgress(false);
   };
 
-  const handleNewSessionClick = async () => {
+  const proceedNewSession = async () => {
     await handleClear();
     setGroupSelectedCallback(() => setSessionInProgress(true));
     setOpenSelectGroupModal(true);
+  };
+
+  const handleNewSessionClick = () => {
+    const isEdited = calc.rows.some((r) => r.name.trim() || r.cashOut.trim());
+    if (isEdited) {
+      setResetTableConfirmOpen(true);
+    } else {
+      proceedNewSession();
+    }
   };
 
   const handleSaveSession = async () => {
@@ -398,6 +408,67 @@ export function PayoutTable() {
           })()}
         </div>
       </div>
+
+      {/* New session: reset table confirmation modal */}
+      {resetTableConfirmOpen && (
+        <div
+          className="modal active"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="reset-table-confirm-title"
+        >
+          <div
+            className="modal-overlay"
+            onClick={() => setResetTableConfirmOpen(false)}
+          />
+          <div className="modal-content" role="document">
+            <div className="modal-header">
+              <h2 id="reset-table-confirm-title" className="modal-title">
+                New session
+              </h2>
+              <button
+                type="button"
+                className="modal-close"
+                onClick={() => setResetTableConfirmOpen(false)}
+                aria-label="Close"
+              >
+                ✕
+              </button>
+            </div>
+            <div className="modal-body">
+              <p className="muted-text" style={{ marginBottom: '1rem' }}>
+                This will reset the table. Continue?
+              </p>
+              <div
+                style={{
+                  display: 'flex',
+                  gap: '0.75rem',
+                  justifyContent: 'flex-end',
+                  flexWrap: 'wrap',
+                }}
+              >
+                <button
+                  type="button"
+                  className="btn btn-secondary"
+                  onClick={() => setResetTableConfirmOpen(false)}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  className="btn btn-primary"
+                  onClick={() => {
+                    setResetTableConfirmOpen(false);
+                    proceedNewSession();
+                  }}
+                >
+                  Continue
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* End session confirmation modal */}
       {user && endSessionModalOpen && (
