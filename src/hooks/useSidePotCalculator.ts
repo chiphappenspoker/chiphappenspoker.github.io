@@ -117,6 +117,14 @@ export function useSidePotCalculator() {
     };
   }, [payoutSelectedGroupId, getGroupMembers]);
 
+  const selectedGroup = useMemo(
+    () =>
+      payoutSelectedGroupId
+        ? groups.find((g) => g.id === payoutSelectedGroupId) ?? null
+        : null,
+    [payoutSelectedGroupId, groups]
+  );
+
   const allSuspects = useMemo(() => {
     const raw =
       payoutSelectedGroupId && loggedIn
@@ -299,6 +307,7 @@ export function useSidePotCalculator() {
     initialPot,
     setInitialPot,
     boards,
+    selectedGroup,
     setBoards: setBoardsValue,
     totalBet,
     totalWon,

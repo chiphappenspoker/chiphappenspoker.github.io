@@ -268,9 +268,16 @@ footer { text-align: center; color: var(--color-muted); font-size: 12px; padding
 .boards-card-content {
   display: flex;
   align-items: center;
-  justify-content: flex-end;
+  justify-content: space-between;
   gap: var(--space-md);
 }
+.boards-card-sub {
+  display: flex;
+  align-items: center;
+  gap: var(--space-md);
+  padding-right: var(--space-md);
+}
+.boards-card .buyin-card-main { padding-left: var(--space-md); }
 .boards-card-label {
   font-size: 11px;
   text-transform: uppercase;

@@ -89,21 +89,29 @@ export function SidePotTable() {
           <OptionsDropdown onShare={handleShare} />
         </div>
 
-        {/* Boards selection card (above table) */}
+        {/* Boards card (above table): group info + boards selection */}
         <div className="boards-card card">
           <div className="card-content boards-card-content">
-            <label className="boards-card-label" htmlFor="boardsSelect">
-              Boards
-            </label>
-            <select
-              id="boardsSelect"
-              className="select-field boards-select"
-              value={calc.boards}
-              onChange={(e) => calc.setBoards(Number(e.target.value))}
-            >
-              <option value={1}>1</option>
-              <option value={2}>2</option>
-            </select>
+            <div className="buyin-card-main">
+              <span className="buyin-card-main-label">Group</span>
+              <span className="buyin-card-main-value">
+                {calc.selectedGroup ? calc.selectedGroup.name : 'No group'}
+              </span>
+            </div>
+            <div className="boards-card-sub">
+              <label className="boards-card-label" htmlFor="boardsSelect">
+                Boards
+              </label>
+              <select
+                id="boardsSelect"
+                className="select-field boards-select"
+                value={calc.boards}
+                onChange={(e) => calc.setBoards(Number(e.target.value))}
+              >
+                <option value={1}>1</option>
+                <option value={2}>2</option>
+              </select>
+            </div>
           </div>
         </div>
 
