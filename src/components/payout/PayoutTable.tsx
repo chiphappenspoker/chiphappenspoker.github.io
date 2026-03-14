@@ -12,6 +12,13 @@ import { SettlementPanel } from './SettlementPanel';
 import { useToast } from '@/hooks/useToast';
 import { useSelectGroupModal } from '@/hooks/useSelectGroupModal';
 import { fmt, fmtInt, fmtOptionalDecimals } from '@/lib/calc/formatting';
+import {
+  getRebalanceDirection,
+  getRebalanceDifference,
+  applyRebalance,
+  type RebalanceOptionIndex,
+  type RebalanceDirection,
+} from '@/lib/calc/rebalance';
 
 /** Buy-in card layout: 'main-sub' (group left, buy-in right with border) | 'equal' (two columns) | 'inline' (single row of items) */
 const BUYIN_CARD_LAYOUT = 'equal';
@@ -29,8 +36,31 @@ export function PayoutTable() {
   /** Checked names in Usual Suspects modal; synced from table when modal opens. */
   const [suspectsChecked, setSuspectsChecked] = useState<Set<string>>(new Set());
   const [resetTableConfirmOpen, setResetTableConfirmOpen] = useState(false);
+  const [rebalanceModalOpen, setRebalanceModalOpen] = useState(false);
 
   const openEndSessionModal = () => {
+    if (!calc.isBalanced && getRebalanceDirection(calc.totalIn, calc.totalOut)) {
+      setRebalanceModalOpen(true);
+    } else {
+      setEndSessionModalOpen(true);
+    }
+  };
+
+  const handleRebalanceConfirm = (optionIndex: RebalanceOptionIndex) => {
+    const direction = getRebalanceDirection(calc.totalIn, calc.totalOut);
+    if (direction && optionIndex !== 3) {
+      const ctx = {
+        rows: calc.rows,
+        totalIn: calc.totalIn,
+        totalOut: calc.totalOut,
+        payouts: calc.payouts,
+      };
+      const newOuts = applyRebalance(ctx, optionIndex, direction);
+      newOuts.forEach((val, i) => {
+        calc.updateRow(i, 'cashOut', fmtOptionalDecimals(val));
+      });
+    }
+    setRebalanceModalOpen(false);
     setEndSessionModalOpen(true);
   };
 
@@ -39,7 +69,7 @@ export function PayoutTable() {
     setSessionInProgress(false);
   };
 
-  const tableLocked = endSessionModalOpen;
+  const tableLocked = endSessionModalOpen || rebalanceModalOpen;
 
   const handleClear = async () => {
     if (calc.currentSessionId) await clearQueueEntriesForSession(calc.currentSessionId);
@@ -408,6 +438,70 @@ export function PayoutTable() {
           })()}
         </div>
       </div>
+
+      {/* Rebalance options modal (when session is unbalanced, shown before End session) */}
+      {rebalanceModalOpen && (() => {
+        const direction = getRebalanceDirection(calc.totalIn, calc.totalOut);
+        const diff = getRebalanceDifference(calc.totalIn, calc.totalOut);
+        const outGtIn = direction === 'out_gt_in';
+        const options: { index: RebalanceOptionIndex; label: string }[] = outGtIn
+          ? [
+              { index: 0, label: 'Divide among all players equally' },
+              { index: 1, label: 'Divide among winners equally' },
+              { index: 2, label: 'Divide among winners proportionally' },
+              { index: 3, label: 'Do not rebalance' },
+            ]
+          : [
+              { index: 0, label: 'Divide among all players equally' },
+              { index: 1, label: 'Divide among losers equally' },
+              { index: 2, label: 'Divide among losers proportionally' },
+              { index: 3, label: 'Do not rebalance' },
+            ];
+        return (
+          <div
+            className="modal active"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="rebalance-modal-title"
+          >
+            <div className="modal-overlay" onClick={() => setRebalanceModalOpen(false)} />
+            <div className="modal-content" role="document">
+              <div className="modal-header">
+                <h2 id="rebalance-modal-title" className="modal-title">
+                  Session unbalanced
+                </h2>
+                <button
+                  type="button"
+                  className="modal-close"
+                  onClick={() => setRebalanceModalOpen(false)}
+                  aria-label="Close"
+                >
+                  ✕
+                </button>
+              </div>
+              <div className="modal-body">
+                <p className="muted-text" style={{ marginBottom: '1rem' }}>
+                  {outGtIn
+                    ? `Out exceeds In by ${fmtOptionalDecimals(diff)} ${calc.currency}. Rebalance?`
+                    : `In exceeds Out by ${fmtOptionalDecimals(diff)} ${calc.currency}. Rebalance?`}
+                </p>
+                <div className="flex flex-col gap-2">
+                  {options.map((opt) => (
+                    <button
+                      key={opt.index}
+                      type="button"
+                      className="btn btn-secondary w-full text-left"
+                      onClick={() => handleRebalanceConfirm(opt.index)}
+                    >
+                      {opt.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </div>
+          </div>
+        );
+      })()}
 
       {/* New session: reset table confirmation modal */}
       {resetTableConfirmOpen && (
