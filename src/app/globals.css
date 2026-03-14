@@ -268,6 +268,7 @@ footer { text-align: center; color: var(--color-muted); font-size: 12px; padding
 .boards-card-content {
   display: flex;
   align-items: center;
+  justify-content: flex-end;
   gap: var(--space-md);
 }
 .boards-card-label {
@@ -953,8 +954,14 @@ footer { text-align: center; color: var(--color-muted); font-size: 12px; padding
 
 /* ── Leaderboard carousel ── */
 .leaderboard-carousel { margin-top: var(--space-md); }
-.leaderboard-carousel-header { margin-bottom: var(--space-sm); text-align: center; }
-.leaderboard-category-title { font-weight: 700; font-size: 1rem; }
+.leaderboard-carousel-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-md);
+  margin-bottom: var(--space-sm);
+}
+.leaderboard-category-title { font-weight: 700; font-size: 1rem; flex: 1; text-align: center; }
 .leaderboard-dots {
   display: flex;
   gap: var(--space-sm);
@@ -973,19 +980,14 @@ footer { text-align: center; color: var(--color-muted); font-size: 12px; padding
 }
 .leaderboard-dot:hover { background: rgba(255,255,255,0.15); }
 .leaderboard-dot-active { background: var(--color-accent); border-color: var(--color-accent); }
-.leaderboard-nav-row {
-  display: flex;
-  align-items: flex-start;
-  gap: var(--space-sm);
-}
 .leaderboard-arrow {
   flex-shrink: 0;
   width: 40px;
   min-height: 36px;
   padding: 0;
-  border: 1px solid var(--color-outline);
+  border: 1px solid transparent;
   border-radius: var(--radius-lg);
-  background: var(--color-panel);
+  background: transparent;
   color: var(--color-text);
   font-size: 1.5rem;
   line-height: 1;
@@ -994,8 +996,8 @@ footer { text-align: center; color: var(--color-muted); font-size: 12px; padding
   align-items: center;
   justify-content: center;
 }
-.leaderboard-arrow:hover { background: rgba(255,255,255,0.08); }
-.leaderboard-table-wrap { flex: 1; min-width: 0; }
+.leaderboard-arrow:hover { background: rgba(255,255,255,0.06); }
+.leaderboard-table-wrap { margin-top: 0; }
 
 /* Session detail (history) table: fixed layout; only Player left-aligned, rest right-aligned */
 .session-detail-table { table-layout: fixed; width: 100%; }

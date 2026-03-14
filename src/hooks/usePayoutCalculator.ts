@@ -347,6 +347,31 @@ export function usePayoutCalculator() {
     [buyIn]
   );
 
+  /** Set table rows to exactly the selected names; preserves existing row data (buyIn, cashOut) when a name already exists. */
+  const setRowsFromSelectedNames = useCallback(
+    (names: string[]) => {
+      const trimmed = names.map((n) => n.trim()).filter(Boolean);
+      if (trimmed.length === 0) return;
+      setRows((prev) => {
+        const byName = new Map(prev.map((r) => [r.name.trim().toLowerCase(), r]));
+        return trimmed.map((name) => {
+          const existing = byName.get(name.toLowerCase());
+          if (existing) return { ...existing, name };
+          return {
+            id: generateId(),
+            name,
+            buyIn: fmtInt(parseNum(buyIn)),
+            cashOut: '',
+            settled: false,
+            paid: false,
+            dbPlayerId: undefined,
+          };
+        });
+      });
+    },
+    [buyIn]
+  );
+
   const getShareUrl = useCallback(async () => {
     const shareData = {
       rows: rows.map((r) => ({
@@ -385,8 +410,10 @@ export function usePayoutCalculator() {
     clearTable,
     showSuspects,
     toggleSuspects,
+    allSuspects,
     availableSuspects,
     addSuspectToRow,
+    setRowsFromSelectedNames,
     getShareUrl,
     getPlayerNames,
     settlementMode,

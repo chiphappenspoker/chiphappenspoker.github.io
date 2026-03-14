@@ -22,6 +22,9 @@ export function PayoutTable() {
   const [endSessionModalOpen, setEndSessionModalOpen] = useState(false);
   /** When false, show New Session; when true (and user), show End Session. Toggles on New Session click and when End Session modal closes. */
   const [sessionInProgress, setSessionInProgress] = useState(false);
+  const [usualSuspectsModalOpen, setUsualSuspectsModalOpen] = useState(false);
+  /** Checked names in Usual Suspects modal; synced from table when modal opens. */
+  const [suspectsChecked, setSuspectsChecked] = useState<Set<string>>(new Set());
 
   const openEndSessionModal = () => {
     setEndSessionModalOpen(true);
@@ -270,7 +273,12 @@ export function PayoutTable() {
               className="btn btn-secondary btn-session-action btn-icon-only"
               type="button"
               disabled={tableLocked}
-              onClick={calc.toggleSuspects}
+              onClick={() => {
+                setSuspectsChecked(
+                  new Set(calc.rows.map((r) => r.name.trim()).filter(Boolean))
+                );
+                setUsualSuspectsModalOpen(true);
+              }}
               aria-label="Usual suspects"
             >
               <span aria-hidden="true">
@@ -332,21 +340,7 @@ export function PayoutTable() {
             </button>
           </div>
 
-          {/* Usual Suspects */}
-          {calc.showSuspects && (
-            <div className="suspects-list" style={{ display: 'flex' }}>
-              {calc.availableSuspects.map((name) => (
-                <span
-                  key={name}
-                  className="player-chip"
-                  onClick={() => calc.addSuspectToRow(name)}
-                >
-                  {name}
-                </span>
-              ))}
-            </div>
-          )}
-        </div>
+          </div>
 
           {/* Summary card: Total Pot, Balanced/Unbalanced, missing amount, player count */}
           {(() => {
@@ -463,6 +457,97 @@ export function PayoutTable() {
                   }}
                 >
                   {savingSession ? 'Saving…' : 'Save'}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Usual Suspects modal: checkboxes to choose which players appear in the table */}
+      {usualSuspectsModalOpen && (
+        <div
+          className="modal active"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="usual-suspects-title"
+        >
+          <div
+            className="modal-overlay"
+            onClick={() => setUsualSuspectsModalOpen(false)}
+          />
+          <div className="modal-content" role="document">
+            <div className="modal-header">
+              <h2 id="usual-suspects-title" className="modal-title">
+                Usual suspects
+              </h2>
+              <button
+                type="button"
+                className="modal-close"
+                onClick={() => setUsualSuspectsModalOpen(false)}
+                aria-label="Close"
+              >
+                ✕
+              </button>
+            </div>
+            <div className="modal-body">
+              {calc.allSuspects.length === 0 ? (
+                <p className="muted-text">
+                  No players listed. Select a group (New session) or add names in
+                  Settings → Usual suspects.
+                </p>
+              ) : (
+                <ul className="usual-suspects-modal-list" style={{ listStyle: 'none', padding: 0, margin: 0 }}>
+                  {calc.allSuspects.map((name) => (
+                    <li key={name} style={{ marginBottom: '0.5rem' }}>
+                      <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer' }}>
+                        <input
+                          type="checkbox"
+                          checked={suspectsChecked.has(name)}
+                          onChange={(e) => {
+                            setSuspectsChecked((prev) => {
+                              const next = new Set(prev);
+                              if (e.target.checked) next.add(name);
+                              else next.delete(name);
+                              return next;
+                            });
+                          }}
+                        />
+                        <span>{name}</span>
+                      </label>
+                    </li>
+                  ))}
+                </ul>
+              )}
+              <div
+                style={{
+                  display: 'flex',
+                  gap: '0.75rem',
+                  justifyContent: 'flex-end',
+                  flexWrap: 'wrap',
+                  marginTop: '1rem',
+                }}
+              >
+                <button
+                  type="button"
+                  className="btn btn-secondary"
+                  onClick={() => setUsualSuspectsModalOpen(false)}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  className="btn btn-primary"
+                  disabled={calc.allSuspects.length === 0 || suspectsChecked.size === 0}
+                  onClick={() => {
+                    const ordered = calc.allSuspects.filter((n) =>
+                      suspectsChecked.has(n)
+                    );
+                    calc.setRowsFromSelectedNames(ordered);
+                    setUsualSuspectsModalOpen(false);
+                  }}
+                >
+                  Apply
                 </button>
               </div>
             </div>
