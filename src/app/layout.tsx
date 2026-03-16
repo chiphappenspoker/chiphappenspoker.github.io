@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from 'next';
 import { Montserrat } from 'next/font/google';
 import './globals.css';
+import { BASE_PATH } from '@/lib/constants';
 import { ServiceWorkerRegistrar } from '@/components/layout/ServiceWorkerRegistrar';
 
 const montserrat = Montserrat({
@@ -13,10 +14,10 @@ const montserrat = Montserrat({
 export const metadata: Metadata = {
   title: 'ChipHappens – Poker Payout Calculator',
   description: 'Calculate poker cash game payouts and side pots instantly.',
-  manifest: '/ChipHappens/manifest.webmanifest',
+  manifest: `${BASE_PATH}/manifest.webmanifest`,
   icons: {
-    icon: '/ChipHappens/icons/app_icon.png',
-    apple: '/ChipHappens/icons/app_icon.png',
+    icon: `${BASE_PATH}/icons/app_icon.png`,
+    apple: `${BASE_PATH}/icons/app_icon.png`,
   },
   appleWebApp: {
     capable: true,

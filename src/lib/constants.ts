@@ -16,7 +16,7 @@ export const VALID_SETTLEMENT_MODES = ['banker', 'greedy'] as const;
 export const APP_VERSION = 'Version 2.0';
 export const MIGRATION_FLAG_KEY = 'poker-migrated:v1';
 /** Base path for the app (must match next.config basePath). Used for invite links. */
-export const BASE_PATH = '/ChipHappens';
+export const BASE_PATH = '';
 
 /**
  * Origin (protocol + host) for invite and other share links. Set NEXT_PUBLIC_SITE_URL in env

@@ -14,7 +14,7 @@ import { createHash } from 'node:crypto';
 
 const OUT_DIR = join(process.cwd(), 'out');
 const SW_PATH = join(OUT_DIR, 'sw.js');
-const BASE_PATH = '/ChipHappens';
+const BASE_PATH = '';
 
 // ── Collect every file under out/ ────────────────────────────────────────────
 function walk(dir) {

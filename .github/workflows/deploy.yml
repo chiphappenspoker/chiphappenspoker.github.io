@@ -20,7 +20,7 @@ jobs:
     env:
       NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
       NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
-      NEXT_PUBLIC_SITE_URL: https://cahitugur.github.io
+      NEXT_PUBLIC_SITE_URL: https://chiphappenspoker.github.io
     steps:
       - uses: actions/checkout@v4
 

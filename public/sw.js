@@ -61,13 +61,13 @@ self.addEventListener('fetch', (event) => {
           const cached = await caches.match(request);
           if (cached) return cached;
 
-          // /ChipHappens/side-pot -> /ChipHappens/side-pot.html
+          // /side-pot -> /side-pot.html (root fallback for offline)
           const htmlUrl = request.url.replace(/\/?$/, '.html').replace('/.html', '.html');
           const htmlCached = await caches.match(htmlUrl);
           if (htmlCached) return htmlCached;
 
           // Last resort: serve the index page
-          return caches.match('/ChipHappens/') || caches.match('/ChipHappens/index.html');
+          return caches.match('/') || caches.match('/index.html');
         })
     );
   } else if (isApi) {
