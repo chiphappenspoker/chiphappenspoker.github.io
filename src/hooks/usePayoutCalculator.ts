@@ -347,46 +347,68 @@ export function usePayoutCalculator() {
     [buyIn]
   );
 
-  /** Merge checked usual suspects with existing rows. Preserves table order: keeps manual players and checked suspects in place, removes unchecked suspects, appends newly checked suspects. */
+  /**
+   * Merge checked usual suspects with existing rows. Keeps order; removes unchecked suspects;
+   * fills empty rows first with checked names (in checkbox order), then appends any remainder.
+   */
   const setRowsFromSelectedNames = useCallback(
     (checkedNames: string[], suspectNames: string[]) => {
       const suspectSet = new Set(
         suspectNames.map((n) => n.trim().toLowerCase()).filter(Boolean)
       );
       const trimmedChecked = checkedNames.map((n) => n.trim()).filter(Boolean);
-      const checkedSet = new Set(
-        trimmedChecked.map((n) => n.toLowerCase())
-      );
+      const checkedSet = new Set(trimmedChecked.map((n) => n.toLowerCase()));
       setRows((prev) => {
+        const queue = trimmedChecked.slice();
         const result: PayoutRowData[] = [];
+        const inResult = (nm: string) =>
+          result.some((r) => r.name.trim().toLowerCase() === nm.toLowerCase());
+
         for (const row of prev) {
           const name = row.name.trim();
           if (!name) {
-            result.push(row);
+            const idx = queue.findIndex((nm) => !inResult(nm));
+            if (idx >= 0) {
+              const next = queue[idx];
+              queue.splice(idx, 1);
+              result.push({
+                ...row,
+                name: next,
+                buyIn: row.buyIn || fmtInt(parseNum(buyIn)),
+                cashOut: row.cashOut ?? '',
+                settled: false,
+                paid: false,
+                dbPlayerId: undefined,
+              });
+            } else {
+              result.push(row);
+            }
             continue;
           }
-          if (!suspectSet.has(name.toLowerCase())) {
-            result.push(row);
+
+          if (suspectSet.has(name.toLowerCase()) && !checkedSet.has(name.toLowerCase())) {
             continue;
           }
-          if (checkedSet.has(name.toLowerCase())) result.push(row);
+
+          const qi = queue.findIndex((nm) => nm.toLowerCase() === name.toLowerCase());
+          if (qi >= 0) queue.splice(qi, 1);
+          result.push(row);
         }
-        const existingNames = new Set(
-          result.map((r) => r.name.trim().toLowerCase()).filter(Boolean)
-        );
-        for (const name of trimmedChecked) {
-          if (existingNames.has(name.toLowerCase())) continue;
+
+        while (queue.length > 0 && result.length < MAX_ROWS) {
+          const nm = queue.shift()!;
+          if (inResult(nm)) continue;
           result.push({
             id: generateId(),
-            name,
+            name: nm,
             buyIn: fmtInt(parseNum(buyIn)),
             cashOut: '',
             settled: false,
             paid: false,
             dbPlayerId: undefined,
           });
-          existingNames.add(name.toLowerCase());
         }
+
         return result;
       });
     },

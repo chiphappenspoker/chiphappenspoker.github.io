@@ -10,9 +10,9 @@
     "test:run": "vitest run",
     "test:coverage": "vitest run --coverage",
     "lint": "next lint",
-    "supabase:link": "supabase link",
-    "supabase:db:push": "bash -c 'set -a && [ -f .env.local ] && . ./.env.local; set +a; supabase db push'",
-    "supabase:db:reset": "supabase db reset"
+    "supabase:link": "bash -c 'set -a && [ -f .env.local ] && . ./.env.local; set +a; npx supabase link --project-ref \"${SUPABASE_PROJECT_REF:-buhmynyqymryrjnqdiqt}\" --password \"${SUPABASE_DB_PASSWORD}\" --yes'",
+    "supabase:db:push": "bash -c 'set -a && [ -f .env.local ] && . ./.env.local; set +a; npx supabase db push'",
+    "supabase:db:reset": "npx supabase db reset"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.97.0",

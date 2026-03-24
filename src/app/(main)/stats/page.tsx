@@ -10,6 +10,7 @@ import type { PlayerStats } from '@/lib/types';
 import type { CumulativePnlPoint } from '@/lib/data/stats';
 import { PnLChart } from '@/components/history/PnLChart';
 import { NavMenu } from '@/components/layout/NavMenu';
+import { ProFeatureGate } from '@/components/entitlements/ProFeatureGate';
 
 type Period = 'all' | '30' | '90' | 'year';
 
@@ -162,6 +163,13 @@ export default function StatsPage() {
   const combined = combineStats(rows);
 
   return (
+    <ProFeatureGate
+      layout="cardWithNav"
+      navActivePage="stats"
+      feature="canLifetimeStats"
+      title="Your stats"
+      description="Lifetime stats and profit over time are part of ChipHappens Pro (one-time unlock)."
+    >
     <div className="wrap">
       <h1 className="page-title">Your stats</h1>
       <div className="card">
@@ -259,5 +267,6 @@ export default function StatsPage() {
         </div>
       </div>
     </div>
+    </ProFeatureGate>
   );
 }

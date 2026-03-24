@@ -8,7 +8,9 @@ create table if not exists profiles (
   currency text default 'EUR',
   default_buy_in text default '30',
   settlement_mode text default 'greedy',
-  is_paid boolean default false,
+  pro_unlocked_at timestamptz,
+  pro_unlock_source text,
+  notification_prefs jsonb not null default '{}',
   created_at timestamptz default now(),
   updated_at timestamptz default now()
 );

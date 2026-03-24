@@ -657,8 +657,7 @@ export function PayoutTable() {
             <div className="modal-body">
               {calc.allSuspects.length === 0 ? (
                 <p className="muted-text">
-                  No players listed. Select a group (New session) or add names in
-                  Settings → Usual suspects.
+                  No players listed. Select a group (New session).
                 </p>
               ) : (
                 <ul className="usual-suspects-modal-list" style={{ listStyle: 'none', padding: 0, margin: 0 }}>

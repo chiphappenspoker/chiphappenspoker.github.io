@@ -1,7 +1,9 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useAuth } from '@/lib/auth/AuthProvider';
+import { useEntitlements } from '@/lib/entitlements/EntitlementsProvider';
+import { FREE_TIER_HISTORY_DISPLAY_CAP } from '@/lib/entitlements/constants';
 import { getRepository } from '@/lib/data/sync-repository';
 import { getLocalStorage } from '@/lib/storage/local-storage';
 import { PAYOUT_STORAGE_KEY, SELECTED_GROUP_CHANGED_EVENT } from '@/lib/constants';
@@ -26,16 +28,36 @@ function getInitialFilters(): GameHistoryFilters {
   return { ...defaultFilters, groupId: groupId || null };
 }
 
+function sortSessionsNewestFirst(list: DbGameSession[]): DbGameSession[] {
+  return [...list].sort((a, b) => {
+    const ta = a.created_at || `${a.session_date}T00:00:00`;
+    const tb = b.created_at || `${b.session_date}T00:00:00`;
+    return ta < tb ? 1 : ta > tb ? -1 : 0;
+  });
+}
+
 export function useGameHistory() {
   const { user } = useAuth();
+  const { tier, flags, loading: entitlementsLoading } = useEntitlements();
   const [sessions, setSessions] = useState<DbGameSession[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [filters, setFiltersState] = useState<GameHistoryFilters>(getInitialFilters);
 
+  const effectiveFilters = useMemo((): GameHistoryFilters => {
+    if (flags.canGroups) return filters;
+    return { ...filters, groupId: null };
+  }, [flags.canGroups, filters]);
+
   const setFilters = useCallback((update: Partial<GameHistoryFilters>) => {
     setFiltersState((prev) => ({ ...prev, ...update }));
   }, []);
+
+  useEffect(() => {
+    if (!flags.canGroups && filters.groupId) {
+      setFiltersState((prev) => ({ ...prev, groupId: null }));
+    }
+  }, [flags.canGroups, filters.groupId]);
 
   const reload = useCallback(async () => {
     if (!user) {
@@ -44,15 +66,22 @@ export function useGameHistory() {
       setError(null);
       return;
     }
+    if (entitlementsLoading) {
+      setLoading(true);
+      return;
+    }
     setLoading(true);
     setError(null);
     try {
       const repo = getRepository(true);
-      const list = await repo.getGameSessionsForUser({
-        groupId: filters.groupId ?? undefined,
-        fromDate: filters.fromDate || undefined,
-        toDate: filters.toDate || undefined,
+      let list = await repo.getGameSessionsForUser({
+        groupId: effectiveFilters.groupId ?? undefined,
+        fromDate: effectiveFilters.fromDate || undefined,
+        toDate: effectiveFilters.toDate || undefined,
       });
+      if (tier === 'free') {
+        list = sortSessionsNewestFirst(list).slice(0, FREE_TIER_HISTORY_DISPLAY_CAP);
+      }
       setSessions(list);
     } catch (e) {
       setError((e as Error).message);
@@ -60,7 +89,7 @@ export function useGameHistory() {
     } finally {
       setLoading(false);
     }
-  }, [user, filters.groupId, filters.fromDate, filters.toDate]);
+  }, [user, entitlementsLoading, tier, effectiveFilters.groupId, effectiveFilters.fromDate, effectiveFilters.toDate]);
 
   useEffect(() => {
     if (!user) {
@@ -69,7 +98,7 @@ export function useGameHistory() {
       setError(null);
       return;
     }
-    reload();
+    void reload();
   }, [user, reload]);
 
   useEffect(() => {

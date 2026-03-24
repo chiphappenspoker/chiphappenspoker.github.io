@@ -1,11 +1,18 @@
 'use client';
 
-import { Suspense } from 'react';
+import { Suspense, useState } from 'react';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 import { useAuth } from '@/lib/auth/AuthProvider';
 import { useGroups } from '@/hooks/useGroups';
 import { useGameHistory } from '@/hooks/useGameHistory';
+import { useToast } from '@/hooks/useToast';
+import { useEntitlements } from '@/lib/entitlements/EntitlementsProvider';
+import {
+  FREE_TIER_HISTORY_DISPLAY_CAP,
+  FREE_TIER_OWNED_SESSION_CAP,
+} from '@/lib/entitlements/constants';
+import { downloadSessionsCsv } from '@/lib/export/download-sessions-csv';
 import { NavMenu } from '@/components/layout/NavMenu';
 import { SessionDetailContent } from './SessionDetailContent';
 import { getLocalStorage, setLocalStorage } from '@/lib/storage/local-storage';
@@ -34,6 +41,9 @@ function HistoryPageContent() {
   const sessionId = searchParams.get('sessionId') ?? '';
   const { user, loading: authLoading } = useAuth();
   const { groups } = useGroups();
+  const { flags, tier } = useEntitlements();
+  const { showToast } = useToast();
+  const [exporting, setExporting] = useState(false);
   const { sessions, loading, error, filters, setFilters, reload } = useGameHistory();
 
   const getGroupName = (groupId: string | null): string => {
@@ -92,35 +102,44 @@ function HistoryPageContent() {
           <span className="spacer" />
         </div>
         <div className="card-content">
+          {tier === 'free' && (
+            <p className="muted-text text-sm mb-4">
+              Free: up to {FREE_TIER_HISTORY_DISPLAY_CAP} most recent sessions in this list. You can own up to{' '}
+              {FREE_TIER_OWNED_SESSION_CAP} saved games in the cloud. Upgrade to Pro for unlimited history, groups, and
+              export.
+            </p>
+          )}
           <div className="space-y-3 mb-6">
-            <label className="settings-field block">
-              <span className="settings-label">Group</span>
-              <select
-                className="input-field w-full"
-                value={filters.groupId ?? ''}
-                onChange={(e) => {
-                  const value = e.target.value || null;
-                  setFilters({ groupId: value });
-                  const existing = getLocalStorage<Record<string, unknown>>(PAYOUT_STORAGE_KEY);
-                  const next = existing
-                    ? { ...existing, selectedGroupId: value ?? undefined }
-                    : { selectedGroupId: value ?? undefined };
-                  setLocalStorage(PAYOUT_STORAGE_KEY, next);
-                  if (typeof window !== 'undefined') {
-                    window.dispatchEvent(
-                      new CustomEvent(SELECTED_GROUP_CHANGED_EVENT, { detail: { selectedGroupId: value } })
-                    );
-                  }
-                }}
-              >
-                <option value="">All groups</option>
-                {groups.map((g) => (
-                  <option key={g.id} value={g.id}>
-                    {g.name}
-                  </option>
-                ))}
-              </select>
-            </label>
+            {flags.canGroups && (
+              <label className="settings-field block">
+                <span className="settings-label">Group</span>
+                <select
+                  className="input-field w-full"
+                  value={filters.groupId ?? ''}
+                  onChange={(e) => {
+                    const value = e.target.value || null;
+                    setFilters({ groupId: value });
+                    const existing = getLocalStorage<Record<string, unknown>>(PAYOUT_STORAGE_KEY);
+                    const next = existing
+                      ? { ...existing, selectedGroupId: value ?? undefined }
+                      : { selectedGroupId: value ?? undefined };
+                    setLocalStorage(PAYOUT_STORAGE_KEY, next);
+                    if (typeof window !== 'undefined') {
+                      window.dispatchEvent(
+                        new CustomEvent(SELECTED_GROUP_CHANGED_EVENT, { detail: { selectedGroupId: value } })
+                      );
+                    }
+                  }}
+                >
+                  <option value="">All groups</option>
+                  {groups.map((g) => (
+                    <option key={g.id} value={g.id}>
+                      {g.name}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            )}
             <div className="grid grid-cols-2 gap-3">
               <label className="settings-field block">
                 <span className="settings-label">From date</span>
@@ -141,9 +160,28 @@ function HistoryPageContent() {
                 />
               </label>
             </div>
-            <button type="button" className="btn btn-secondary" onClick={reload} disabled={loading}>
-              {loading ? 'Loading…' : 'Refresh'}
-            </button>
+            <div className="flex flex-wrap gap-2">
+              <button type="button" className="btn btn-secondary" onClick={() => void reload()} disabled={loading}>
+                {loading ? 'Loading…' : 'Refresh'}
+              </button>
+              {flags.canExport && (
+                <button
+                  type="button"
+                  className="btn btn-secondary"
+                  disabled={exporting}
+                  onClick={() => {
+                    setExporting(true);
+                    void downloadSessionsCsv().then((r) => {
+                      setExporting(false);
+                      if (r.ok) showToast('Download started');
+                      else showToast(r.message);
+                    });
+                  }}
+                >
+                  {exporting ? 'Exporting…' : 'Export CSV'}
+                </button>
+              )}
+            </div>
           </div>
 
           {error && (

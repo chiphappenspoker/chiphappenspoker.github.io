@@ -7,14 +7,25 @@
 
 ## Link to your remote project (one-time)
 
-From the project root:
+The hosted project ref for ChipHappens is **`buhmynyqymryrjnqdiqt`** (from `https://buhmynyqymryrjnqdiqt.supabase.co`).
+
+1. Add to **`.env.local`** (see `.env.example`):
+   - `SUPABASE_DB_PASSWORD` — Dashboard → **Project Settings → Database** (database password).
+   - `SUPABASE_ACCESS_TOKEN` — Dashboard (avatar) → **Account → Access Tokens** → create a token (used by the CLI to talk to the Management API).
+
+2. From the project root:
 
 ```bash
-npx supabase link --project-ref YOUR_PROJECT_REF
+npm run supabase:link
 ```
 
-Use your **Project ref** from Supabase Dashboard → Settings → General (or the subdomain in your project URL, e.g. `buhmynyqymryrjnqdiqt` from `https://buhmynyqymryrjnqdiqt.supabase.co`).  
-When prompted, enter your **database password** (Settings → Database).
+This runs `npx supabase link --project-ref buhmynyqymryrjnqdiqt` (or `SUPABASE_PROJECT_REF` if set) with your DB password. The access token is picked up from the environment via `.env.local`.
+
+Alternatively, run `npx supabase login` once (paste the same token), then:
+
+```bash
+npx supabase link --project-ref buhmynyqymryrjnqdiqt --password "$SUPABASE_DB_PASSWORD" --yes
+```
 
 ## Apply migrations (database from scratch)
 

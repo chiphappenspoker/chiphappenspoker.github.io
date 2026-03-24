@@ -6,10 +6,12 @@ import { GroupsProvider } from '@/hooks/useGroups';
 import { SelectGroupModalProvider } from '@/hooks/useSelectGroupModal';
 import { AppShell } from './AppShell';
 import { AuthProvider } from '@/lib/auth/AuthProvider';
+import { EntitlementsProvider } from '@/lib/entitlements/EntitlementsProvider';
 
 export function Providers({ children }: { children: React.ReactNode }) {
   return (
     <AuthProvider>
+      <EntitlementsProvider>
       <ToastProvider>
         <GroupsProvider>
           <SettingsProvider>
@@ -19,6 +21,7 @@ export function Providers({ children }: { children: React.ReactNode }) {
           </SettingsProvider>
         </GroupsProvider>
       </ToastProvider>
+      </EntitlementsProvider>
     </AuthProvider>
   );
 }

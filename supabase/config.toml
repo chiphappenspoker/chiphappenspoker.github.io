@@ -374,6 +374,13 @@ deno_version = 2
 # [edge_runtime.secrets]
 # secret_key = "env(SECRET_VALUE)"
 
+# Phase 3b: stubs use no JWT; export-sessions-csv uses default verify_jwt = true
+[functions.billing-webhook]
+verify_jwt = false
+
+[functions.send-push]
+verify_jwt = false
+
 [analytics]
 enabled = true
 port = 54327

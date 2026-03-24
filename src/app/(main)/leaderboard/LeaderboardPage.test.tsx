@@ -13,6 +13,28 @@ vi.mock('next/link', () => ({
 vi.mock('@/lib/auth/AuthProvider', () => ({ useAuth: vi.fn() }));
 vi.mock('@/hooks/useGroups', () => ({ useGroups: vi.fn() }));
 vi.mock('@/lib/data/stats', () => ({ getGroupLeaderboard: vi.fn() }));
+vi.mock('@/lib/entitlements/EntitlementsProvider', () => ({
+  useEntitlements: () => ({
+    tier: 'pro' as const,
+    flags: {
+      canUnlimitedSessions: true,
+      canLifetimeStats: true,
+      canPlayerInsights: true,
+      canCrossSessionLeaderboard: true,
+      canGroups: true,
+      canProfitOverTime: true,
+      canExport: true,
+    },
+    loading: false,
+    proUnlockedAt: '2026-01-01T00:00:00Z',
+    notificationPrefs: { groupInvite: true, sessionSettled: true, settlementReminder: true },
+    setNotificationPrefs: vi.fn(),
+    refresh: vi.fn(),
+    upgradeModalOpen: false,
+    openUpgradeModal: vi.fn(),
+    closeUpgradeModal: vi.fn(),
+  }),
+}));
 vi.mock('@/components/layout/NavMenu', () => ({
   NavMenu: () => <nav data-testid="nav-menu">NavMenu</nav>,
 }));

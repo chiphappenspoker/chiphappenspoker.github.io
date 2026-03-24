@@ -1,8 +1,6 @@
 import { SettingsData, UsualSuspect } from '../types';
 import { SETTINGS_STORAGE_KEY, KNOWN_CURRENCIES, VALID_SETTLEMENT_MODES } from '../constants';
 
-const SETTINGS_FILENAME = 'poker-calc-settings.json';
-
 /* ── localStorage ── */
 
 const loadSettingsLS = (): SettingsData | null => {
@@ -77,58 +75,4 @@ export async function loadSettingsData(): Promise<SettingsData | null> {
 export async function saveSettingsData(payload: SettingsData): Promise<void> {
   if (typeof window === 'undefined') return;
   saveSettingsLS(payload);
-}
-
-/* ── Import (file input) ── */
-
-export async function openSettingsFileForImport(): Promise<SettingsData | null> {
-  if (typeof window === 'undefined') return null;
-
-  return new Promise((resolve, reject) => {
-    const input = document.createElement('input');
-    input.type = 'file';
-    input.accept = '.json,application/json';
-    input.style.display = 'none';
-    input.addEventListener('change', async () => {
-      try {
-        const file = input.files?.[0];
-        if (!file) {
-          resolve(null);
-          return;
-        }
-        const text = await file.text();
-        const data = JSON.parse(text);
-        resolve(data);
-      } catch {
-        reject(new Error('InvalidJSON'));
-      } finally {
-        document.body.removeChild(input);
-      }
-    });
-    input.addEventListener('cancel', () => {
-      document.body.removeChild(input);
-      resolve(null);
-    });
-    document.body.appendChild(input);
-    input.click();
-  });
-}
-
-/* ── Export (download JSON) ── */
-
-export async function saveSettingsDataAs(payload: SettingsData): Promise<void> {
-  if (typeof window === 'undefined') return;
-
-  saveSettingsLS(payload);
-  const blob = new Blob([JSON.stringify(payload, null, 2)], {
-    type: 'application/json',
-  });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = SETTINGS_FILENAME;
-  document.body.appendChild(a);
-  a.click();
-  document.body.removeChild(a);
-  URL.revokeObjectURL(url);
 }

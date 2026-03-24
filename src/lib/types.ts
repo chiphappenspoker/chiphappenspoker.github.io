@@ -7,7 +7,9 @@ export interface DbProfile {
   currency: string;
   default_buy_in: string;
   settlement_mode: string;
-  is_paid: boolean;
+  pro_unlocked_at: string | null;
+  pro_unlock_source: string | null;
+  notification_prefs: Record<string, unknown>;
   created_at: string;
   updated_at: string;
 }

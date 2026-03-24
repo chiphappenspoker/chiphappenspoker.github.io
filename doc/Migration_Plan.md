@@ -1,7 +1,7 @@
 # ChipHappens — Migration & Implementation Plan
 
-> Last updated: 2026-03-08
-> Tech Stack: Next.js (React) · Tailwind CSS · Supabase · Capacitor · RevenueCat
+> Last updated: 2026-03-24
+> Tech Stack: Next.js (React) · Tailwind CSS · Supabase · Capacitor · billing (RevenueCat/Stripe deferred; structure in Phase 3b)
 > Approach: Full migration, phased rollout
 
 ---
@@ -19,7 +19,7 @@ The plan is divided into **5 phases**, each producing a shippable milestone:
 | **1** | Framework Migration | Feature-parity with current app, now in Next.js + Tailwind |
 | **2** | Backend & Accounts | Supabase auth, cloud storage, offline sync |
 | **3** | Social | Groups, leaderboards, analytics, game history |
-| **3b** | Premium & Notifications | Freemium gating, RevenueCat, push, data export |
+| **3b** | Entitlements & Notifications | FREE vs PRO gating, billing *structure* (no RC/Stripe yet), push, PRO export |
 | **4** | Distribution | Google Play listing, iOS PWA polish, (future: App Store) |
 
 ---
@@ -243,7 +243,8 @@ profiles
   id              UUID PK (= auth.users.id)
   display_name    TEXT
   revtag          TEXT
-  is_paid         BOOLEAN DEFAULT false
+  pro_unlocked_at TIMESTAMPTZ NULL  -- PRO (one-time); set manually in early phases, billing webhook later
+  pro_unlock_source TEXT NULL       -- e.g. 'manual', 'revenuecat', 'stripe' (optional)
   created_at      TIMESTAMPTZ
   updated_at      TIMESTAMPTZ
 
@@ -360,7 +361,9 @@ When a localStorage-only user creates an account:
 
 ## Phase 3 — Social Features
 
-**Goal:** Groups, leaderboards, analytics, game history. No freemium or push yet.
+**Goal:** Groups, leaderboards, analytics, game history. No entitlements or push yet.
+
+**Access note:** Phase 3 implements these capabilities in the product; **which capabilities are FREE vs PRO** is defined in Phase 3b. After Phase 3b, groups, cross-session stats, unlimited history, and export are PRO-only unless the user has unlocked PRO (see Phase 3b matrix).
 
 ### Step 3.1 — Database Schema Extension
 
@@ -436,31 +439,47 @@ Build components:
 
 ---
 
-## Phase 3b — Premium & Notifications
+## Phase 3b — Entitlements & Notifications
 
-**Goal:** Freemium gating, RevenueCat, push notifications, data export.
+**Goal:** Implement a **feature gating** system (FREE vs PRO), **prepare** the codebase and schema for one-time PRO unlock via billing (RevenueCat/Stripe) **without** shipping that integration yet. Add push notifications and a PRO-only **CSV-ready export** endpoint.
 
-### Step 3b.1 — Freemium Gating
+**Monetization model:** PRO is a **one-time unlock** (not a subscription). Until billing ships, PRO can be toggled via `profiles` (e.g. manual flag for QA) or a dev-only override.
+
+### FREE vs PRO matrix (source of truth)
+
+| Tier | Scope |
+|------|--------|
+| **FREE** | Create sessions; add players; track buy-ins and payouts; calculate final payouts; **save up to 10 most recent sessions**; **view per-session results** (who won/lost). |
+| **PRO** (one-time unlock) | **Unlimited** saved sessions; **lifetime stats**: `total_profit`, `win_rate`, `average_buy_in`; **player insights**: `profit_vs_player`, leaderboard **across sessions**; **create and manage groups**; **profit over time** (basic time-series); **export data** (CSV-ready API endpoint). |
+
+Implementation detail: enforce limits in **API/RLS + client** (e.g. cap list queries at 10 for FREE; hide or 403 PRO-only routes and UI).
+
+### Step 3b.1 — Entitlements & Feature Gates
 
 Create `src/lib/entitlements/`:
-- `entitlements.ts` — checks `profiles.is_paid` or RevenueCat entitlement
-- `PaidFeatureGate` component — wraps paid features, shows upgrade prompt if free tier
-- `UpgradeModal` — explains paid tier benefits, links to purchase
 
-Free tier limits:
-- Max N players per game (exact number TBD, e.g. 6)
-- Last 5 game sessions visible in history
-- No groups, no leaderboards, no analytics, no push, no export
+- `types.ts` — `EntitlementTier = 'free' | 'pro'`, feature flags derived from tier (single source of truth aligned with the matrix above)
+- `resolveTier.ts` — reads `profiles.pro_unlocked_at`; returns `'pro'` if set, else `'free'` (billing adapters populate this field later)
+- `featureFlags.ts` — maps tier → booleans (`canUnlimitedSessions`, `canLifetimeStats`, `canGroups`, `canExport`, …)
+- `PaidFeatureGate` (or `ProFeatureGate`) — wraps PRO UI; shows upgrade CTA when FREE
+- `UpgradeModal` — explains PRO benefits; **primary CTA is a placeholder** (“Unlock PRO — coming soon”) until post–Phase 3b billing work (Step 3b.2 skeleton only in 3b)
 
-### Step 3b.2 — RevenueCat Integration
+**Database:** use `profiles.pro_unlocked_at` / `pro_unlock_source` from Phase 2; tier = PRO iff `pro_unlocked_at IS NOT NULL`.
 
-- Create RevenueCat project, configure products
-- Install `@revenuecat/purchases-capacitor` (for Android) and
-  `@revenuecat/purchases-js` (for web/PWA)
-- Platform detection: web → Stripe via RevenueCat Web SDK; Android → Play Billing via
-  Capacitor plugin
-- On purchase: RevenueCat webhook → Supabase Edge Function → set `profiles.is_paid = true`
-- On app open: check entitlement, update local state
+RLS / Edge Functions: FREE users cannot list or aggregate beyond allowed scope (e.g. >10 sessions, cross-session analytics, groups, export).
+
+### Step 3b.2 — Billing integration structure (deferred — no RevenueCat/Stripe in this phase)
+
+**Do not** add RevenueCat or Stripe SDKs or production webhooks yet. **Do** add the skeleton so wiring is a small follow-up:
+
+- `src/lib/billing/` (or `src/lib/entitlements/billing/`):
+  - `README.md` — one page: planned flow (web vs Android), env vars, webhook URL shape
+  - `types.ts` — `BillingProvider`, `PurchaseEvent`, `EntitlementSyncPayload`
+  - `noop-adapter.ts` — `syncEntitlementsFromBilling(): Promise<void>` no-op (or reads nothing) until real adapter exists
+- Supabase: reserved Edge Function path/name (e.g. `billing-webhook`) — **stub** that returns 501 or logs only; document expected payload for future RevenueCat/Stripe
+- Document in `profiles` which fields billing will set (`pro_unlocked_at`, optional receipt metadata column later)
+
+**Later phase (not 3b):** RevenueCat (`@revenuecat/purchases-js`, `@revenuecat/purchases-capacitor`) and/or Stripe (web); webhook → Edge Function → set `pro_unlocked_at`; client refresh tier after purchase.
 
 ### Step 3b.3 — Push Notifications
 
@@ -473,22 +492,23 @@ Free tier limits:
 - Capacitor `@capacitor/push-notifications` plugin for Android native push
 - Web Push API for browser (best-effort)
 
-### Step 3b.4 — Data Export
+*(Optional policy: restrict some notification types to PRO only — only if product wants it; default can be same for all authenticated users.)*
 
-- CSV export: Supabase Edge Function generates CSV from game_players + game_sessions
-- PDF export: client-side via jsPDF or server-side via Edge Function
-- GDPR full data export: Edge Function collects all user data → JSON download
+### Step 3b.4 — PRO data export (CSV-ready endpoint)
+
+- **Edge Function** (or authenticated API route pattern compatible with static export): returns **CSV-ready** data (correct `Content-Type` / download headers) for the signed-in user’s sessions and players — **PRO only** (403 for FREE)
+- Client: “Export” action visible only when tier is PRO; triggers download
+- **Out of scope for 3b:** PDF export, full GDPR bundle (can be a later compliance milestone)
 
 ### Step 3b.5 — Verification (Phase 3b)
 
-- [ ] Free user blocked from paid features with upgrade prompt
-- [ ] Purchase flow works (sandbox/test mode)
-- [ ] After purchase, paid features unlock without reload
-- [ ] Push notification received on Android for group invite
+- [ ] FREE user: can create sessions, players, buy-ins/payouts, final payouts; history capped at **10** sessions; per-session results visible for allowed sessions
+- [ ] FREE user: blocked from PRO surfaces (unlimited history, lifetime stats, player insights, cross-session leaderboard, groups, profit-over-time, export) with clear upgrade path
+- [ ] PRO user (e.g. `pro_unlocked_at` set manually): unlimited sessions; lifetime stats + player insights + groups + time-series + export work
+- [ ] `src/lib/billing/` skeleton + webhook stub exist; no production payment SDKs required for this checklist
+- [ ] Push notification received on Android for group invite (where applicable)
 - [ ] Push preferences saved and respected
-- [ ] CSV export contains correct session/player data
-- [ ] PDF export renders correctly
-- [ ] Full data export (GDPR) returns complete user data
+- [ ] CSV export endpoint returns correct data for PRO; FREE receives 403
 
 **Estimated effort: 2–3 weeks**
 
@@ -522,8 +542,8 @@ npx cap add android
 ```
 
 - Configure `capacitor.config.ts`: `webDir: 'out'`, server URL for dev
-- Install Capacitor plugins: `@capacitor/push-notifications`,
-  `@revenuecat/purchases-capacitor`, `@capacitor/preferences`
+- Install Capacitor plugins: `@capacitor/push-notifications`, `@capacitor/preferences`
+  - Add `@revenuecat/purchases-capacitor` when billing integration ships (after Phase 3b)
 - `npx cap sync` after every `npm run build`
 
 ### Step 4.4 — Android Build & Play Store
@@ -557,7 +577,7 @@ npx cap add ios
 npx cap sync
 ```
 - Open in Xcode, configure signing + provisioning
-- Add `@revenuecat/purchases-capacitor` StoreKit configuration
+- Add `@revenuecat/purchases-capacitor` and StoreKit configuration when billing ships
 - Configure APNs for push notifications
 - Apple requires: Sign in with Apple (if offering social login), privacy nutrition labels
 - Submit for review
@@ -565,7 +585,7 @@ npx cap sync
 ### Step 4.8 — Verification (Phase 4)
 
 - [ ] Android APK installs and runs from Play Store (internal testing track)
-- [ ] In-app purchase completes on Android (sandbox)
+- [ ] In-app purchase completes on Android (sandbox) — when billing integration is added post–Phase 3b
 - [ ] Push notifications work on Android device
 - [ ] GitHub Pages deployment: push to main → site updates
 - [ ] iOS Safari PWA: Add to Home Screen → offline works → calculator works
@@ -583,7 +603,7 @@ npx cap sync
 | Phase 1 — Framework Migration | 2–3 weeks | 2–3 weeks |
 | Phase 2 — Backend & Accounts | 2–3 weeks | 4–6 weeks |
 | Phase 3 — Social | 2–3 weeks | 6–9 weeks |
-| Phase 3b — Premium & Notifications | 2–3 weeks | 8–12 weeks |
+| Phase 3b — Entitlements & Notifications | 2–3 weeks | 8–12 weeks |
 | Phase 4 — Distribution & Polish | 2–3 weeks | 10–15 weeks |
 | **Total** | | **~10–15 weeks** |
 
@@ -606,7 +626,7 @@ Estimates assume a single developer working part-time (~20 hrs/week). Full-time 
 | Server Functions | Supabase Edge Functions (Deno) | Hosted |
 | Native Wrapper | Capacitor | 6.x |
 | Push | FCM + @capacitor/push-notifications | — |
-| IAP | RevenueCat | — |
+| IAP / PRO unlock | Deferred (RevenueCat / Stripe) | Structure in Phase 3b; SDKs in a later milestone |
 | Charts | Chart.js (or Recharts) | — |
 | i18n | next-intl (or react-i18next) | — |
 | PWA | next-pwa | — |
@@ -623,7 +643,7 @@ Estimates assume a single developer working part-time (~20 hrs/week). Full-time 
 | Framework | Next.js (React) | SvelteKit, Vue/Nuxt | Largest ecosystem, best Supabase integration, most AI assistance quality |
 | Rendering | Static export | SSR | GitHub Pages hosting, no server needed (Supabase handles all backend) |
 | Backend | Supabase | Firebase, custom | Relational data (SQL), open-source, built-in auth + realtime + RLS |
-| IAP | RevenueCat | Direct StoreKit/Play Billing | Cross-platform entitlement sync, receipt validation, zero cost at low volume |
+| IAP | RevenueCat / Stripe (planned) | Direct StoreKit/Play Billing | Cross-platform entitlement sync, receipt validation; **integration deferred** after Phase 3b entitlements exist |
 | Offline storage | Dexie (IndexedDB) | localStorage only | Structured data, larger capacity, better query support for sync queue |
 | CSS | Tailwind | Custom CSS | Matches existing Design Guidelines, faster development, built-in responsive |
 | Deployment | GitHub Pages + GH Actions | Vercel | Free, already using GitHub, static export sufficient |

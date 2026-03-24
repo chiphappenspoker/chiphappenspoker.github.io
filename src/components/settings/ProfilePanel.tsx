@@ -2,8 +2,11 @@
 
 import { useState, useEffect } from 'react';
 import { useSettings } from '@/hooks/useSettings';
+import { useAuth } from '@/lib/auth/AuthProvider';
+import { NotificationPrefsSection } from './NotificationPrefsSection';
 
 export function ProfilePanel() {
+  const { user } = useAuth();
   const { settings, closeSettingsModal, setActivePanel, updateProfile } = useSettings();
   const [name, setName] = useState('');
   const [revtag, setRevtag] = useState('');
@@ -76,6 +79,7 @@ export function ProfilePanel() {
               />
             </label>
           </div>
+          {user ? <NotificationPrefsSection /> : null}
           <div className="settings-actions">
             <button className="btn btn-primary" onClick={handleSave}>
               Save

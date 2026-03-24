@@ -9,6 +9,7 @@ import { formatLeaderboardRank } from '@/lib/calc/leaderboard-rank';
 import { useEffect, useRef, useState } from 'react';
 import type { LeaderboardRow } from '@/lib/types';
 import { NavMenu } from '@/components/layout/NavMenu';
+import { ProFeatureGate } from '@/components/entitlements/ProFeatureGate';
 import { getLocalStorage, setLocalStorage } from '@/lib/storage/local-storage';
 import { PAYOUT_STORAGE_KEY, SELECTED_GROUP_CHANGED_EVENT } from '@/lib/constants';
 
@@ -177,6 +178,13 @@ export default function LeaderboardPage() {
   const displayRows = currentCategory ? getRowsForCategory(rows, currentCategory.id) : [];
 
   return (
+    <ProFeatureGate
+      layout="cardWithNav"
+      navActivePage="leaderboard"
+      feature="canCrossSessionLeaderboard"
+      title="Leaderboard"
+      description="Group leaderboards across sessions are part of ChipHappens Pro (one-time unlock)."
+    >
     <div className="wrap">
       <h1 className="page-title">Leaderboard</h1>
       <div className="card">
@@ -343,5 +351,6 @@ export default function LeaderboardPage() {
         </div>
       </div>
     </div>
+    </ProFeatureGate>
   );
 }

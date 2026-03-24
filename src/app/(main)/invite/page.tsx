@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 import { useAuth } from '@/lib/auth/AuthProvider';
 import { useGroups } from '@/hooks/useGroups';
+import { useEntitlements } from '@/lib/entitlements/EntitlementsProvider';
 
 function InviteContent() {
   const searchParams = useSearchParams();
@@ -12,6 +13,7 @@ function InviteContent() {
   const groupName = searchParams.get('name') ?? 'this group';
   const decodedName = decodeURIComponent(groupName);
   const { user, loading: authLoading } = useAuth();
+  const { flags, openUpgradeModal } = useEntitlements();
   const { addGroupMember, reload } = useGroups();
   const [joining, setJoining] = useState(false);
   const [joined, setJoined] = useState(false);
@@ -97,14 +99,23 @@ function InviteContent() {
         <div className="card-content text-center">
           <p className="muted-text mb-4">Join <strong>{decodedName}</strong> to appear in the player list when this group is used for a session.</p>
           {error && <p className="text-red-500 text-sm mb-4">{error}</p>}
-          <button
-            type="button"
-            className="btn btn-primary"
-            onClick={handleJoin}
-            disabled={joining}
-          >
-            {joining ? 'Joining…' : 'Join group'}
-          </button>
+          {!flags.canGroups ? (
+            <>
+              <p className="muted-text text-sm mb-4">Joining groups is part of ChipHappens Pro (one-time unlock).</p>
+              <button type="button" className="btn btn-primary" onClick={() => openUpgradeModal()}>
+                Learn about Pro
+              </button>
+            </>
+          ) : (
+            <button
+              type="button"
+              className="btn btn-primary"
+              onClick={handleJoin}
+              disabled={joining}
+            >
+              {joining ? 'Joining…' : 'Join group'}
+            </button>
+          )}
           <p className="mt-4">
             <Link href="/" className="text-sm muted-text underline">
               Back to calculator

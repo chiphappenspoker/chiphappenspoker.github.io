@@ -7,14 +7,7 @@ import { GroupsPanel } from './GroupsPanel';
 import { GameDefaultsPanel } from './GameDefaultsPanel';
 
 export function SettingsModal() {
-  const {
-    settingsModalOpen,
-    activePanel,
-    closeSettingsModal,
-    setActivePanel,
-    importSettings,
-    exportSettings,
-  } = useSettings();
+  const { settingsModalOpen, activePanel, closeSettingsModal, setActivePanel } = useSettings();
 
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
@@ -49,24 +42,6 @@ export function SettingsModal() {
                 <button className="settings-item-btn" onClick={() => setActivePanel('gameDefaults')}>
                   <span>Game Defaults</span>
                   <span className="settings-item-meta">Currency, Buy-in, Settlement</span>
-                </button>
-              </div>
-              <div className="settings-actions settings-actions-split">
-                <button className="btn btn-secondary settings-action-btn" onClick={importSettings}>
-                  <svg className="settings-action-icon" viewBox="0 0 24 24" aria-hidden="true">
-                    <path d="M12 3v10" />
-                    <path d="M7 9l5 5 5-5" />
-                    <path d="M5 20h14" />
-                  </svg>
-                  <span>Import</span>
-                </button>
-                <button className="btn btn-secondary settings-action-btn" onClick={exportSettings}>
-                  <svg className="settings-action-icon" viewBox="0 0 24 24" aria-hidden="true">
-                    <path d="M12 21V11" />
-                    <path d="M7 15l5-5 5 5" />
-                    <path d="M5 4h14" />
-                  </svg>
-                  <span>Export</span>
                 </button>
               </div>
             </div>

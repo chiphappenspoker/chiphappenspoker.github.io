@@ -13,8 +13,6 @@ import {
   normalizeSettingsData,
   loadSettingsData,
   saveSettingsData,
-  openSettingsFileForImport,
-  saveSettingsDataAs,
 } from '@/lib/storage/settings-store';
 import { useToast } from './useToast';
 import { useAuth } from '@/lib/auth/AuthProvider';
@@ -38,8 +36,6 @@ interface SettingsContextValue {
   updateProfile: (profile: SettingsData['profile']) => Promise<boolean>;
   updateUsualSuspects: (suspects: UsualSuspect[]) => Promise<boolean>;
   updateGameSettings: (gs: SettingsData['gameSettings']) => Promise<boolean>;
-  importSettings: () => Promise<boolean>;
-  exportSettings: () => Promise<boolean>;
   reload: () => Promise<void>;
 }
 
@@ -152,33 +148,6 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
     [settings, showToast, loggedIn]
   );
 
-  const importSettingsFn = useCallback(async (): Promise<boolean> => {
-    try {
-      const raw = await openSettingsFileForImport();
-      if (!raw) return false;
-      const normalized = normalizeSettingsData(raw, EMPTY_SUSPECTS);
-      if (loggedIn) await getRepository(true).saveSettings(normalized);
-      await saveSettingsData(normalized);
-      setSettings(normalized);
-      showToast('Settings imported');
-      return true;
-    } catch {
-      showToast('Unable to import settings');
-      return false;
-    }
-  }, [showToast, loggedIn]);
-
-  const exportSettingsFn = useCallback(async (): Promise<boolean> => {
-    try {
-      await saveSettingsDataAs(settings);
-      showToast('Settings exported');
-      return true;
-    } catch {
-      showToast('Unable to export settings');
-      return false;
-    }
-  }, [settings, showToast]);
-
   return (
     <SettingsContext.Provider
       value={{
@@ -194,8 +163,6 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
         updateProfile,
         updateUsualSuspects,
         updateGameSettings,
-        importSettings: importSettingsFn,
-        exportSettings: exportSettingsFn,
         reload: loadAndSetSettings,
       }}
     >

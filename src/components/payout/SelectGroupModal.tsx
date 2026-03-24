@@ -2,6 +2,7 @@
 
 import { useGroups } from '@/hooks/useGroups';
 import { useSettings } from '@/hooks/useSettings';
+import { useEntitlements } from '@/lib/entitlements/EntitlementsProvider';
 import { getLocalStorage, setLocalStorage } from '@/lib/storage/local-storage';
 import { PAYOUT_STORAGE_KEY, SELECTED_GROUP_CHANGED_EVENT } from '@/lib/constants';
 
@@ -14,6 +15,7 @@ interface SelectGroupModalProps {
 
 export function SelectGroupModal({ open, onClose, onGroupSelected }: SelectGroupModalProps) {
   const { groups, loggedIn } = useGroups();
+  const { flags, openUpgradeModal } = useEntitlements();
   const { openSettingsToNewGroup } = useSettings();
 
   const handleCreateGroup = () => {
@@ -51,8 +53,16 @@ export function SelectGroupModal({ open, onClose, onGroupSelected }: SelectGroup
           {!loggedIn && (
             <p className="muted-text mb-4">Sign in to create and use groups.</p>
           )}
+          {loggedIn && !flags.canGroups && (
+            <p className="muted-text text-sm mb-4">
+              Groups are a Pro feature.{' '}
+              <button type="button" className="underline text-inherit" onClick={() => openUpgradeModal()}>
+                Learn more
+              </button>
+            </p>
+          )}
           <div className="flex flex-col gap-2">
-            {loggedIn && (
+            {loggedIn && flags.canGroups && (
               <button
                 type="button"
                 className="btn btn-secondary w-full text-left"
@@ -68,16 +78,17 @@ export function SelectGroupModal({ open, onClose, onGroupSelected }: SelectGroup
             >
               No group
             </button>
-            {groups.map((g) => (
-              <button
-                key={g.id}
-                type="button"
-                className={`btn w-full text-left ${currentId === g.id ? 'btn-primary' : 'btn-secondary'}`}
-                onClick={() => handleSelect(g.id)}
-              >
-                {g.name}
-              </button>
-            ))}
+            {flags.canGroups &&
+              groups.map((g) => (
+                <button
+                  key={g.id}
+                  type="button"
+                  className={`btn w-full text-left ${currentId === g.id ? 'btn-primary' : 'btn-secondary'}`}
+                  onClick={() => handleSelect(g.id)}
+                >
+                  {g.name}
+                </button>
+              ))}
           </div>
         </div>
       </div>

@@ -321,7 +321,7 @@ export function SidePotTable() {
               {calc.allSuspects.length === 0 ? (
                 <p className="muted-text">
                   No players listed. Select a group on the Payout page (New
-                  session) or add names in Settings → Usual suspects.
+                  session).
                 </p>
               ) : (
                 <ul

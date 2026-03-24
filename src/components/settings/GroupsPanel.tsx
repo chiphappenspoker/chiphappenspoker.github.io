@@ -5,6 +5,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useSettings } from '@/hooks/useSettings';
 import { useGroups } from '@/hooks/useGroups';
 import { useAuth } from '@/lib/auth/AuthProvider';
+import { useEntitlements } from '@/lib/entitlements/EntitlementsProvider';
 import { BASE_PATH, getSiteOrigin } from '@/lib/constants';
 import { getRepository } from '@/lib/data/sync-repository';
 import { getGroupLeaderboard } from '@/lib/data/stats';
@@ -38,6 +39,7 @@ function formatSessionDateTime(iso: string): string {
 export function GroupsPanel() {
   const { closeSettingsModal, setActivePanel, initialGroupsView, setInitialGroupsView } = useSettings();
   const { user } = useAuth();
+  const { flags, loading: entitlementsLoading, openUpgradeModal } = useEntitlements();
   const {
     groups,
     loading,
@@ -288,6 +290,55 @@ export function GroupsPanel() {
           </div>
           <div className="modal-body">
             <p className="muted-text">Sign in to create and manage groups. Group members are used as the player list when you select a group for a game session.</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (entitlementsLoading) {
+    return (
+      <div className="modal active" role="dialog" aria-modal="true">
+        <div className="modal-overlay" onClick={closeSettingsModal} />
+        <div className="modal-content" role="document">
+          <div className="modal-header">
+            <button className="modal-back" onClick={() => setActivePanel('hub')} aria-label="Back to settings">
+              <svg className="modal-back-icon" viewBox="0 0 24 24" aria-hidden="true">
+                <path d="M15 5l-7 7 7 7" />
+              </svg>
+            </button>
+            <h2 className="modal-title">Groups</h2>
+            <button className="modal-close" onClick={closeSettingsModal} aria-label="Close">✕</button>
+          </div>
+          <div className="modal-body">
+            <p className="muted-text">Loading…</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (!flags.canGroups) {
+    return (
+      <div className="modal active" role="dialog" aria-modal="true">
+        <div className="modal-overlay" onClick={closeSettingsModal} />
+        <div className="modal-content" role="document">
+          <div className="modal-header">
+            <button className="modal-back" onClick={() => setActivePanel('hub')} aria-label="Back to settings">
+              <svg className="modal-back-icon" viewBox="0 0 24 24" aria-hidden="true">
+                <path d="M15 5l-7 7 7 7" />
+              </svg>
+            </button>
+            <h2 className="modal-title">Groups</h2>
+            <button className="modal-close" onClick={closeSettingsModal} aria-label="Close">✕</button>
+          </div>
+          <div className="modal-body text-center">
+            <p className="muted-text mb-4">
+              Creating and managing groups is part of ChipHappens Pro (one-time unlock). Billing is coming soon.
+            </p>
+            <button type="button" className="btn btn-primary" onClick={() => openUpgradeModal()}>
+              Learn about Pro
+            </button>
           </div>
         </div>
       </div>
