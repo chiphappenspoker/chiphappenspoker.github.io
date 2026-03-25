@@ -21,6 +21,7 @@ import {
   type RebalanceOptionIndex,
   type RebalanceDirection,
 } from '@/lib/calc/rebalance';
+import { SOLO_TABLE_LABEL } from '@/lib/constants';
 
 /** Buy-in card layout: 'main-sub' (group left, buy-in right with border) | 'equal' (two columns) | 'inline' (single row of items) */
 const BUYIN_CARD_LAYOUT = 'equal';
@@ -245,7 +246,7 @@ export function PayoutTable() {
             <div className="buyin-card-main">
               <span className="buyin-card-main-label">Group</span>
               <span className="buyin-card-main-value">
-                {calc.selectedGroup ? calc.selectedGroup.name : 'No group'}
+                {calc.selectedGroup ? calc.selectedGroup.name : SOLO_TABLE_LABEL}
               </span>
             </div>
             <div className="buyin-card-sub">

@@ -8,6 +8,7 @@ import { fmt } from '@/lib/calc/formatting';
 import { useEffect, useState } from 'react';
 import type { DbGameSession, DbGamePlayer } from '@/lib/types';
 import { NavMenu } from '@/components/layout/NavMenu';
+import { SOLO_TABLE_LABEL } from '@/lib/constants';
 
 function formatSessionDateTime(iso: string): string {
   try {
@@ -26,9 +27,9 @@ export function SessionDetailContent({ sessionId }: { sessionId: string }) {
   const [loading, setLoading] = useState(true);
 
   const getGroupName = (groupId: string | null): string => {
-    if (!groupId) return 'No group';
+    if (!groupId) return SOLO_TABLE_LABEL;
     const g = groups.find((x) => x.id === groupId);
-    return g?.name ?? 'No group';
+    return g?.name ?? 'Unknown group';
   };
 
   useEffect(() => {

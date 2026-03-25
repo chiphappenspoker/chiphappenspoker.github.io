@@ -8,6 +8,7 @@ import { SidePotRow } from './SidePotRow';
 import { PotDisplay } from './PotDisplay';
 import { useToast } from '@/hooks/useToast';
 import { fmt, fmtInt, parseNum } from '@/lib/calc/formatting';
+import { SOLO_TABLE_LABEL } from '@/lib/constants';
 
 export function SidePotTable() {
   const calc = useSidePotCalculator();
@@ -96,7 +97,7 @@ export function SidePotTable() {
             <div className="buyin-card-main">
               <span className="buyin-card-main-label">Group</span>
               <span className="buyin-card-main-value">
-                {calc.selectedGroup ? calc.selectedGroup.name : 'No group'}
+                {calc.selectedGroup ? calc.selectedGroup.name : SOLO_TABLE_LABEL}
               </span>
             </div>
             <div className="boards-card-sub">

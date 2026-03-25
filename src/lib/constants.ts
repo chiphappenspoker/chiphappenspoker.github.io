@@ -18,6 +18,9 @@ export const MIGRATION_FLAG_KEY = 'poker-migrated:v1';
 /** Base path for the app (must match next.config basePath). Used for invite links. */
 export const BASE_PATH = '';
 
+/** Label when a session or calculator is not tied to a group (UI copy). */
+export const SOLO_TABLE_LABEL = 'Solo table';
+
 /**
  * Origin (protocol + host) for invite and other share links. Set NEXT_PUBLIC_SITE_URL in env
  * (e.g. https://cahitugur.github.io) so invite links never use localhost. If unset, falls back to

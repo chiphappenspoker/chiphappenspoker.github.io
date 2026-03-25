@@ -4,12 +4,12 @@ import { useGroups } from '@/hooks/useGroups';
 import { useSettings } from '@/hooks/useSettings';
 import { useEntitlements } from '@/lib/entitlements/EntitlementsProvider';
 import { getLocalStorage, setLocalStorage } from '@/lib/storage/local-storage';
-import { PAYOUT_STORAGE_KEY, SELECTED_GROUP_CHANGED_EVENT } from '@/lib/constants';
+import { PAYOUT_STORAGE_KEY, SELECTED_GROUP_CHANGED_EVENT, SOLO_TABLE_LABEL } from '@/lib/constants';
 
 interface SelectGroupModalProps {
   open: boolean;
   onClose: () => void;
-  /** Called when user selects a group (not "No group"). */
+  /** Called when user selects a group with an id (not solo table). */
   onGroupSelected?: () => void;
 }
 
@@ -76,7 +76,7 @@ export function SelectGroupModal({ open, onClose, onGroupSelected }: SelectGroup
               className={`btn w-full text-left ${!currentId ? 'btn-primary' : 'btn-secondary'}`}
               onClick={() => handleSelect(null)}
             >
-              No group
+              {SOLO_TABLE_LABEL}
             </button>
             {flags.canGroups &&
               groups.map((g) => (

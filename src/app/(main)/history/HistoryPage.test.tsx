@@ -140,7 +140,10 @@ describe('HistoryPage', () => {
       reload: vi.fn(),
     });
     render(<HistoryPage />);
-    expect(screen.getByRole('link', { name: /no group · eur/i })).toHaveAttribute('href', '/history?sessionId=s1');
+    expect(screen.getByRole('link', { name: /solo table · eur/i })).toHaveAttribute(
+      'href',
+      '/history?sessionId=s1'
+    );
   });
 
   it('displays session detail view when sessionId is in URL', () => {

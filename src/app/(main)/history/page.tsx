@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 import { useAuth } from '@/lib/auth/AuthProvider';
 import { useGroups } from '@/hooks/useGroups';
+import { SOLO_TABLE_LABEL } from '@/lib/constants';
 import { useGameHistory } from '@/hooks/useGameHistory';
 import { useToast } from '@/hooks/useToast';
 import { useEntitlements } from '@/lib/entitlements/EntitlementsProvider';
@@ -47,7 +48,7 @@ function HistoryPageContent() {
   const { sessions, loading, error, filters, setFilters, reload } = useGameHistory();
 
   const getGroupName = (groupId: string | null): string => {
-    if (!groupId) return 'No group';
+    if (!groupId) return SOLO_TABLE_LABEL;
     const g = groups.find((x) => x.id === groupId);
     return g?.name ?? groupId;
   };
