@@ -7,6 +7,8 @@ export interface DbProfile {
   currency: string;
   default_buy_in: string;
   settlement_mode: string;
+  /** Incremented on each new sign-in; used to invalidate other devices' sessions. */
+  session_generation: number;
   leaderboard_opt_out: boolean;
   pro_unlocked_at: string | null;
   pro_unlock_source: string | null;

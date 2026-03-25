@@ -1,8 +1,13 @@
-import { createContext, useContext, useEffect, useState, ReactNode } from 'react';
+import { createContext, useContext, useEffect, useRef, useState, ReactNode } from 'react';
 import { supabase, isSupabasePlaceholder } from '../supabase/client';
 import { BASE_PATH } from '../constants';
 import { startSyncEngine, stopSyncEngine } from '../sync/sync-engine';
 import { migrateLocalToCloud, needsMigration } from './migrate-local-to-cloud';
+import {
+  bumpSessionGenerationAndStore,
+  clearStoredSessionGeneration,
+  validateSessionGeneration,
+} from './session-generation';
 
 /** Full URL where users land after clicking "Activate account" in the confirmation email (must match Supabase Redirect URLs allow list). */
 function getEmailRedirectUrl(): string {
@@ -52,26 +57,31 @@ const AuthContext = createContext<AuthContextValue | undefined>(undefined);
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<AuthUser | null>(null);
   const [loading, setLoading] = useState(true);
+  const lastSignedInUserIdRef = useRef<string | null>(null);
 
   useEffect(() => {
-    const { data: listener } = supabase.auth.onAuthStateChange((_event, session) => {
-      if (session?.user) {
-        setUser({ id: session.user.id, email: session.user.email ?? '' });
-        ensureProfile(session.user.id, session.user.user_metadata ?? {}).catch(() => {});
-        startSyncEngine();
-      } else {
-        setUser(null);
-        stopSyncEngine();
-      }
-      setLoading(false);
-    });
-    supabase.auth.getUser().then(({ data }) => {
-      if (data?.user) {
-        setUser({ id: data.user.id, email: data.user.email ?? '' });
-        ensureProfile(data.user.id, data.user.user_metadata ?? {}).catch(() => {});
-        startSyncEngine();
-      }
-      setLoading(false);
+    const { data: listener } = supabase.auth.onAuthStateChange((event, session) => {
+      void (async () => {
+        if (session?.user) {
+          const u = { id: session.user.id, email: session.user.email ?? '' };
+          setUser(u);
+          lastSignedInUserIdRef.current = session.user.id;
+          await ensureProfile(session.user.id, session.user.user_metadata ?? {});
+          if (event === 'SIGNED_IN') {
+            await bumpSessionGenerationAndStore(session.user.id);
+          } else if (event === 'INITIAL_SESSION') {
+            await validateSessionGeneration(session.user.id);
+          }
+          startSyncEngine();
+        } else {
+          const uid = lastSignedInUserIdRef.current;
+          if (uid) clearStoredSessionGeneration(uid);
+          lastSignedInUserIdRef.current = null;
+          setUser(null);
+          stopSyncEngine();
+        }
+        setLoading(false);
+      })();
     });
     return () => {
       listener.subscription.unsubscribe();
@@ -84,6 +94,30 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (needsMigration()) {
       migrateLocalToCloud(user.id).catch(() => {});
     }
+  }, [user?.id]);
+
+  /** Event-driven session generation check (no polling). */
+  useEffect(() => {
+    const uid = user?.id;
+    if (!uid) return;
+
+    const run = () => {
+      void validateSessionGeneration(uid);
+    };
+
+    const onVisibility = () => {
+      if (document.visibilityState === 'visible') run();
+    };
+
+    window.addEventListener('focus', run);
+    window.addEventListener('online', run);
+    document.addEventListener('visibilitychange', onVisibility);
+
+    return () => {
+      window.removeEventListener('focus', run);
+      window.removeEventListener('online', run);
+      document.removeEventListener('visibilitychange', onVisibility);
+    };
   }, [user?.id]);
 
   const wrapAuthError = (message: string): string => {
@@ -114,6 +148,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return error ? { error: wrapAuthError(error.message) } : {};
   };
   const signOut = async () => {
+    const uid = lastSignedInUserIdRef.current ?? user?.id;
+    if (uid) clearStoredSessionGeneration(uid);
     await supabase.auth.signOut();
   };
 
