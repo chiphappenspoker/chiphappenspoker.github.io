@@ -43,7 +43,7 @@ const SettingsContext = createContext<SettingsContextValue | null>(null);
 
 const EMPTY_SUSPECTS: UsualSuspect[] = [];
 const defaultSettings: SettingsData = {
-  profile: { name: '', revtag: '' },
+  profile: { name: '', revtag: '', leaderboardOptOut: false },
   usualSuspects: EMPTY_SUSPECTS,
   gameSettings: { currency: 'EUR', defaultBuyIn: '30', settlementMode: 'banker' },
 };

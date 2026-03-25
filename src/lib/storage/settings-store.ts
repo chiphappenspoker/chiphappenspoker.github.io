@@ -25,6 +25,7 @@ export function normalizeSettingsData(
   const profile = {
     name: data?.profile?.name ?? '',
     revtag: data?.profile?.revtag ?? '',
+    leaderboardOptOut: Boolean(data?.profile?.leaderboardOptOut),
   };
 
   const normalizeSuspect = (item: unknown): UsualSuspect | null => {

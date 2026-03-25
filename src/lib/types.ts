@@ -7,6 +7,7 @@ export interface DbProfile {
   currency: string;
   default_buy_in: string;
   settlement_mode: string;
+  leaderboard_opt_out: boolean;
   pro_unlocked_at: string | null;
   pro_unlock_source: string | null;
   notification_prefs: Record<string, unknown>;
@@ -123,6 +124,8 @@ export interface Transaction {
 export interface Profile {
   name: string;
   revtag: string;
+  /** When true, omitted from group leaderboard RPC for all viewers (PRO can still open the page). */
+  leaderboardOptOut: boolean;
 }
 
 export interface UsualSuspect {

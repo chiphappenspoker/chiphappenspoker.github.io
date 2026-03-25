@@ -44,37 +44,31 @@ type CategoryId = 'total_pnl' | 'pnl_per_session' | 'largest_pnl' | 'sessions' |
 const LEADERBOARD_CATEGORIES: Array<{
   id: CategoryId;
   label: string;
-  filter: (row: LeaderboardRow) => boolean;
   sort: (a: LeaderboardRow, b: LeaderboardRow) => number;
 }> = [
   {
     id: 'total_pnl',
     label: 'Total PnL',
-    filter: (r) => r.total_profit > 0,
     sort: (a, b) => b.total_profit - a.total_profit,
   },
   {
     id: 'pnl_per_session',
     label: 'PnL per session',
-    filter: (r) => r.avg_profit > 0,
     sort: (a, b) => b.avg_profit - a.avg_profit,
   },
   {
     id: 'largest_pnl',
     label: 'Largest PnL (single session)',
-    filter: (r) => r.max_session_profit > 0,
     sort: (a, b) => b.max_session_profit - a.max_session_profit,
   },
   {
     id: 'sessions',
     label: '# of Sessions',
-    filter: (r) => r.total_sessions >= 1,
     sort: (a, b) => b.total_sessions - a.total_sessions,
   },
   {
     id: 'win_rate',
     label: 'Win rate',
-    filter: (r) => winRate(r) > 0,
     sort: (a, b) => winRate(b) - winRate(a),
   },
 ];
@@ -82,7 +76,7 @@ const LEADERBOARD_CATEGORIES: Array<{
 function getRowsForCategory(rows: LeaderboardRow[], categoryId: CategoryId): LeaderboardRow[] {
   const cat = LEADERBOARD_CATEGORIES.find((c) => c.id === categoryId);
   if (!cat) return [];
-  return rows.filter(cat.filter).slice().sort(cat.sort);
+  return rows.slice().sort(cat.sort);
 }
 
 export default function LeaderboardPage() {
@@ -303,11 +297,7 @@ export default function LeaderboardPage() {
               </div>
               <div className="leaderboard-table-wrap">
                   {displayRows.length === 0 ? (
-                    <p className="muted-text">
-                      {currentCategory?.id === 'sessions'
-                        ? 'No sessions in this period.'
-                        : `No players with positive ${currentCategory?.label ?? 'metric'} in this period.`}
-                    </p>
+                    <p className="muted-text">No members to rank for this group and period.</p>
                   ) : (
                     <div className="table-wrap">
               <table className="page-payout-table">

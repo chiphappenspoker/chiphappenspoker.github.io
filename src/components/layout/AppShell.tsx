@@ -2,8 +2,7 @@
 
 import { useState, useRef, useEffect } from 'react';
 import { useAuth } from '@/lib/auth/AuthProvider';
-import { ProfilePanel } from '../settings/ProfilePanel';
-
+import { LeaderboardVisibilitySwitch } from '../settings/LeaderboardVisibilitySwitch';
 import { SettingsModal } from '../settings/SettingsModal';
 import { SignInModal } from './SignInModal';
 import { SelectGroupModal } from '../payout/SelectGroupModal';
@@ -136,15 +135,14 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
 // Wrapper to allow closing ProfilePanel from account menu
 function ProfilePanelWrapper({ onClose }: { onClose: () => void }) {
-  // Patch ProfilePanel to call onClose instead of closeSettingsModal
-  // We'll override closeSettingsModal prop via context
-  // This is a hack, but works for now
-  const { settings, setActivePanel, updateProfile } = require('@/hooks/useSettings').useSettings();
+  const { settings, updateProfile } = useSettings();
   const [name, setName] = useState(settings.profile.name);
   const [revtag, setRevtag] = useState(settings.profile.revtag || '@');
+  const [leaderboardOptOut, setLeaderboardOptOut] = useState(settings.profile.leaderboardOptOut);
   useEffect(() => {
     setName(settings.profile.name);
     setRevtag(settings.profile.revtag || '@');
+    setLeaderboardOptOut(settings.profile.leaderboardOptOut);
   }, [settings.profile]);
   const formatRevtag = (v: string) => {
     const trimmed = v.trim();
@@ -155,7 +153,11 @@ function ProfilePanelWrapper({ onClose }: { onClose: () => void }) {
     return trimmed === '@' ? '' : trimmed;
   };
   const handleSave = async () => {
-    const ok = await updateProfile({ name: name.trim(), revtag: normalizeRevtag(revtag) });
+    const ok = await updateProfile({
+      name: name.trim(),
+      revtag: normalizeRevtag(revtag),
+      leaderboardOptOut,
+    });
     if (ok) onClose();
   };
   return (
@@ -167,7 +169,7 @@ function ProfilePanelWrapper({ onClose }: { onClose: () => void }) {
           <button className="modal-close" onClick={onClose} aria-label="Close">✕</button>
         </div>
         <div className="modal-body">
-          <p className="muted-text">Profile settings are stored on this device.</p>
+          <p className="muted-text">Name and revtag sync to your account when signed in.</p>
           <div className="settings-section">
             <label className="settings-field">
               <span className="settings-label">Name</span>
@@ -191,6 +193,10 @@ function ProfilePanelWrapper({ onClose }: { onClose: () => void }) {
                 onBlur={() => setRevtag(formatRevtag(revtag))}
               />
             </label>
+            <LeaderboardVisibilitySwitch
+              showInLeaderboards={!leaderboardOptOut}
+              onShowInLeaderboardsChange={(show) => setLeaderboardOptOut(!show)}
+            />
           </div>
           <div className="settings-actions">
             <button className="btn btn-primary" onClick={handleSave}>

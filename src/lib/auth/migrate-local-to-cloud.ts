@@ -41,6 +41,7 @@ export async function migrateLocalToCloud(userId: string): Promise<void> {
       currency: settings.gameSettings.currency,
       default_buy_in: settings.gameSettings.defaultBuyIn,
       settlement_mode: settings.gameSettings.settlementMode,
+      leaderboard_opt_out: settings.profile.leaderboardOptOut,
       updated_at: new Date().toISOString(),
     },
     { onConflict: 'id' }

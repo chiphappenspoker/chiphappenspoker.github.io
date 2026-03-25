@@ -4,16 +4,19 @@ import { useState, useEffect } from 'react';
 import { useSettings } from '@/hooks/useSettings';
 import { useAuth } from '@/lib/auth/AuthProvider';
 import { NotificationPrefsSection } from './NotificationPrefsSection';
+import { LeaderboardVisibilitySwitch } from './LeaderboardVisibilitySwitch';
 
 export function ProfilePanel() {
   const { user } = useAuth();
   const { settings, closeSettingsModal, setActivePanel, updateProfile } = useSettings();
   const [name, setName] = useState('');
   const [revtag, setRevtag] = useState('');
+  const [leaderboardOptOut, setLeaderboardOptOut] = useState(false);
 
   useEffect(() => {
     setName(settings.profile.name);
     setRevtag(settings.profile.revtag || '@');
+    setLeaderboardOptOut(settings.profile.leaderboardOptOut);
   }, [settings.profile]);
 
   const formatRevtag = (v: string) => {
@@ -30,6 +33,7 @@ export function ProfilePanel() {
     const ok = await updateProfile({
       name: name.trim(),
       revtag: normalizeRevtag(revtag),
+      leaderboardOptOut,
     });
     if (ok) closeSettingsModal();
   };
@@ -54,7 +58,7 @@ export function ProfilePanel() {
           </button>
         </div>
         <div className="modal-body">
-          <p className="muted-text">Profile settings are stored on this device.</p>
+          <p className="muted-text">Name and revtag sync to your account when signed in.</p>
           <div className="settings-section">
             <label className="settings-field">
               <span className="settings-label">Name</span>
@@ -78,6 +82,10 @@ export function ProfilePanel() {
                 onBlur={() => setRevtag(formatRevtag(revtag))}
               />
             </label>
+            <LeaderboardVisibilitySwitch
+              showInLeaderboards={!leaderboardOptOut}
+              onShowInLeaderboardsChange={(show) => setLeaderboardOptOut(!show)}
+            />
           </div>
           {user ? <NotificationPrefsSection /> : null}
           <div className="settings-actions">

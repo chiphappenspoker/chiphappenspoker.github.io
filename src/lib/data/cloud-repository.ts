@@ -19,9 +19,14 @@ function mapProfileToSettingsData(row: {
   currency: string;
   default_buy_in: string;
   settlement_mode: string;
+  leaderboard_opt_out?: boolean | null;
 }): SettingsData {
   return {
-    profile: { name: row.display_name ?? '', revtag: row.revtag ?? '' },
+    profile: {
+      name: row.display_name ?? '',
+      revtag: row.revtag ?? '',
+      leaderboardOptOut: Boolean(row.leaderboard_opt_out),
+    },
     usualSuspects: [], // derived from group at runtime
     gameSettings: {
       currency: row.currency ?? 'EUR',
@@ -37,7 +42,7 @@ export const cloudRepository: Repository = {
     if (!userId) return null;
     const { data, error } = await supabase
       .from('profiles')
-      .select('display_name, revtag, currency, default_buy_in, settlement_mode')
+      .select('display_name, revtag, currency, default_buy_in, settlement_mode, leaderboard_opt_out')
       .eq('id', userId)
       .single();
     if (error || !data) return null;
@@ -57,6 +62,7 @@ export const cloudRepository: Repository = {
           currency: data.gameSettings.currency,
           default_buy_in: data.gameSettings.defaultBuyIn,
           settlement_mode: data.gameSettings.settlementMode,
+          leaderboard_opt_out: data.profile.leaderboardOptOut,
           updated_at: new Date().toISOString(),
         },
         { onConflict: 'id' }
