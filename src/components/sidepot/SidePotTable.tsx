@@ -401,13 +401,7 @@ export function SidePotTable() {
 
 /* ── Options dropdown (share) ── */
 
-function OptionsDropdown({
-  onShare,
-  onOpenSettings,
-}: {
-  onShare: () => void;
-  onOpenSettings: () => void;
-}) {
+function OptionsDropdown({ onShare }: { onShare: () => void }) {
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
 
