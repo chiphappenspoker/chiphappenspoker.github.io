@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor, act } from '@testing-library/react';
 import { PayoutTable } from './PayoutTable';
 
 const mockSetOpenSelectGroupModal = vi.fn();
@@ -76,7 +76,10 @@ describe('PayoutTable new session group picker behavior', () => {
   it('does not open SelectGroupModal when selectedGroupId already exists', async () => {
     render(<PayoutTable />);
 
-    fireEvent.click(screen.getByRole('button', { name: /new session/i }));
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: /new session/i }));
+      await Promise.resolve();
+    });
 
     await waitFor(() => {
       expect(mockCalcBase.setSelectedGroupId).toHaveBeenCalledWith('g1');
@@ -101,4 +104,40 @@ describe('PayoutTable new session group picker behavior', () => {
       expect(mockSetOpenSelectGroupModal).toHaveBeenCalledWith(true);
     });
   });
+});
+
+describe('PayoutTable session status messaging', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockUsePayoutCalculator.mockReturnValue({
+      ...mockCalcBase,
+      rows: [{ id: 'r1', name: 'Alice', buyIn: '50', cashOut: '50', paid: false, settled: false }],
+      clearTable: vi.fn(),
+    });
+  });
+
+  it('renders a dominant end session button and shows upload status in summary card', () => {
+    render(<PayoutTable />);
+
+    const endSessionButton = screen.getByRole('button', { name: /end session/i });
+    expect(endSessionButton.className).toContain('btn-end-session-dominant');
+    expect(screen.getByText('Upload')).toBeInTheDocument();
+    expect(screen.getByText('Not uploaded')).toBeInTheDocument();
+  });
+
+  it('keeps end session disabled when table is untouched', () => {
+    mockUsePayoutCalculator.mockReturnValue({
+      ...mockCalcBase,
+      rows: [
+        { id: 'r1', name: '', buyIn: '30', cashOut: '', paid: false, settled: false },
+        { id: 'r2', name: '', buyIn: '30', cashOut: '', paid: false, settled: false },
+      ],
+      buyIn: '30',
+      clearTable: vi.fn(),
+    });
+    render(<PayoutTable />);
+
+    expect(screen.getByRole('button', { name: /end session/i })).toBeDisabled();
+  });
+
 });

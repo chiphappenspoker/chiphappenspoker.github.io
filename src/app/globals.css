@@ -166,6 +166,15 @@
   background: var(--color-panel);
   border-color: var(--color-outline);
 }
+.action-row .btn-session-action.btn-icon-only.btn-end-session-dominant {
+  background: #15803d;
+  border-color: #15803d;
+  color: #f8fafc;
+}
+.action-row .btn-session-action.btn-icon-only.btn-end-session-dominant:hover:not(:disabled) {
+  background: #166534;
+  border-color: #166534;
+}
 
 /* ── Form fields ── */
 .input-field,
@@ -396,6 +405,8 @@ footer { text-align: center; color: var(--color-muted); font-size: 12px; padding
 .payout-summary-status.ok { color: var(--color-ok); }
 .payout-summary-status.warn { color: var(--color-warn); }
 .payout-summary-difference { color: var(--color-warn); }
+.payout-summary-upload-status.uploaded { color: var(--color-ok); }
+.payout-summary-upload-status.not-uploaded { color: #ef4444; }
 
 .is-hidden { display: none !important; }
 

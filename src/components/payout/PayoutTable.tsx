@@ -27,6 +27,7 @@ import { SOLO_TABLE_LABEL } from '@/lib/constants';
 const BUYIN_CARD_LAYOUT = 'equal';
 
 export function PayoutTable() {
+  const INACTIVITY_REMINDER_MS = 30 * 60 * 1000;
   const calc = usePayoutCalculator();
   const { showToast } = useToast();
   const { user } = useAuth();
@@ -41,6 +42,9 @@ export function PayoutTable() {
   const [suspectsChecked, setSuspectsChecked] = useState<Set<string>>(new Set());
   const [resetTableConfirmOpen, setResetTableConfirmOpen] = useState(false);
   const [rebalanceModalOpen, setRebalanceModalOpen] = useState(false);
+  const [inactivityReminderOpen, setInactivityReminderOpen] = useState(false);
+  const inactivityReminderTimerRef = useRef<number | null>(null);
+  const sessionStartBuyInRef = useRef(calc.buyIn);
 
   const openEndSessionModal = () => {
     if (!calc.isBalanced && getRebalanceDirection(calc.totalIn, calc.totalOut)) {
@@ -92,6 +96,7 @@ export function PayoutTable() {
   const proceedNewSession = async () => {
     const previousGroupId = calc.selectedGroupId;
     await handleClear();
+    sessionStartBuyInRef.current = calc.buyIn;
     if (previousGroupId) {
       calc.setSelectedGroupId(previousGroupId);
       setSessionInProgress(true);
@@ -185,6 +190,45 @@ export function PayoutTable() {
       setSavingSession(false);
     }
   };
+
+  const hasTableEdits =
+    calc.rows.some((r) => r.name.trim().length > 0 || r.cashOut.trim().length > 0) ||
+    calc.buyIn !== sessionStartBuyInRef.current;
+
+  useEffect(() => {
+    const clearInactivityTimer = () => {
+      if (inactivityReminderTimerRef.current != null) {
+        window.clearTimeout(inactivityReminderTimerRef.current);
+        inactivityReminderTimerRef.current = null;
+      }
+    };
+
+    if (!sessionInProgress || endSessionModalOpen || inactivityReminderOpen) {
+      clearInactivityTimer();
+      return () => clearInactivityTimer();
+    }
+
+    const restartInactivityTimer = () => {
+      clearInactivityTimer();
+      inactivityReminderTimerRef.current = window.setTimeout(() => {
+        setInactivityReminderOpen(true);
+      }, INACTIVITY_REMINDER_MS);
+    };
+
+    const onActivity = () => {
+      if (!inactivityReminderOpen) restartInactivityTimer();
+    };
+
+    restartInactivityTimer();
+    window.addEventListener('pointerdown', onActivity);
+    window.addEventListener('keydown', onActivity);
+
+    return () => {
+      clearInactivityTimer();
+      window.removeEventListener('pointerdown', onActivity);
+      window.removeEventListener('keydown', onActivity);
+    };
+  }, [endSessionModalOpen, inactivityReminderOpen, sessionInProgress]);
 
   if (!calc.initialized) {
     return (
@@ -392,9 +436,9 @@ export function PayoutTable() {
               </span>
             </button>
             <button
-              className="btn btn-secondary btn-session-action btn-icon-only"
+              className="btn btn-session-action btn-icon-only btn-end-session-dominant"
               type="button"
-              disabled={tableLocked || calc.rows.length === 0 || !calc.selectedGroupId}
+              disabled={tableLocked || !calc.selectedGroupId || !hasTableEdits}
               onClick={openEndSessionModal}
               aria-label="End session"
               title={!calc.selectedGroupId ? 'Select a group (New session) first' : undefined}
@@ -461,6 +505,16 @@ export function PayoutTable() {
                   <span className="payout-summary-label">Players</span>
                   <span className="payout-summary-value">
                     {calc.rows.filter((r) => r.name.trim()).length}
+                  </span>
+                </div>
+                <div className="payout-summary-item">
+                  <span className="payout-summary-label">Upload</span>
+                  <span
+                    className={`payout-summary-value payout-summary-upload-status ${
+                      calc.currentSessionId ? 'uploaded' : 'not-uploaded'
+                    }`}
+                  >
+                    {calc.currentSessionId ? 'Uploaded' : 'Not uploaded'}
                   </span>
                 </div>
               </div>
@@ -648,6 +702,41 @@ export function PayoutTable() {
                   }}
                 >
                   {savingSession ? 'Saving…' : 'Save'}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {inactivityReminderOpen && (
+        <div className="modal active" role="dialog" aria-modal="true" aria-labelledby="inactivity-reminder-title">
+          <div className="modal-overlay" />
+          <div className="modal-content" role="document">
+            <div className="modal-header">
+              <h2 id="inactivity-reminder-title" className="modal-title">Still playing?</h2>
+            </div>
+            <div className="modal-body">
+              <p className="muted-text" style={{ marginBottom: '1rem' }}>
+                No activity for 30 minutes. Your session is still local and not uploaded until you end the session.
+              </p>
+              <div style={{ display: 'flex', gap: '0.75rem', justifyContent: 'flex-end', flexWrap: 'wrap' }}>
+                <button
+                  type="button"
+                  className="btn btn-secondary"
+                  onClick={() => setInactivityReminderOpen(false)}
+                >
+                  Continue playing
+                </button>
+                <button
+                  type="button"
+                  className="btn btn-primary"
+                  onClick={() => {
+                    setInactivityReminderOpen(false);
+                    openEndSessionModal();
+                  }}
+                >
+                  End session now
                 </button>
               </div>
             </div>
