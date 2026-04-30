@@ -535,13 +535,11 @@ export function PayoutTable() {
               { index: 0, label: 'Divide among all players equally' },
               { index: 1, label: 'Divide among winners equally' },
               { index: 2, label: 'Divide among winners proportionally' },
-              { index: 3, label: 'Do not rebalance' },
             ]
           : [
               { index: 0, label: 'Divide among all players equally' },
               { index: 1, label: 'Divide among losers equally' },
               { index: 2, label: 'Divide among losers proportionally' },
-              { index: 3, label: 'Do not rebalance' },
             ];
         return (
           <div
@@ -567,9 +565,23 @@ export function PayoutTable() {
               </div>
               <div className="modal-body">
                 <p className="muted-text" style={{ marginBottom: '1rem' }}>
-                  {outGtIn
-                    ? `Out exceeds In by ${fmtOptionalDecimals(diff)} ${calc.currency}. Rebalance?`
-                    : `In exceeds Out by ${fmtOptionalDecimals(diff)} ${calc.currency}. Rebalance?`}
+                  {outGtIn ? (
+                    <>
+                      Out exceeds In by {fmtOptionalDecimals(diff)} {calc.currency}. Session may not be saved without
+                      rebalancing.
+                      <br />
+                      <br />
+                      Auto-Rebalance?
+                    </>
+                  ) : (
+                    <>
+                      In exceeds Out by {fmtOptionalDecimals(diff)} {calc.currency}. Session may not be saved without
+                      rebalancing.
+                      <br />
+                      <br />
+                      Auto-Rebalance?
+                    </>
+                  )}
                 </p>
                 <div className="flex flex-col gap-2">
                   {options.map((opt) => (
