@@ -42,11 +42,20 @@ export function PayoutTable() {
   const [suspectsChecked, setSuspectsChecked] = useState<Set<string>>(new Set());
   const [resetTableConfirmOpen, setResetTableConfirmOpen] = useState(false);
   const [rebalanceModalOpen, setRebalanceModalOpen] = useState(false);
+  const [endSessionProOnlyModalOpen, setEndSessionProOnlyModalOpen] = useState(false);
   const [inactivityReminderOpen, setInactivityReminderOpen] = useState(false);
   const inactivityReminderTimerRef = useRef<number | null>(null);
   const sessionStartBuyInRef = useRef(calc.buyIn);
 
+  /** Matches “Ad Hoc” in the UI: no resolved group (e.g. signed out with stale saved group id). */
+  const isEffectiveAdHocSession =
+    !calc.selectedGroup && !(calc.groupsLoading && user);
+
   const openEndSessionModal = () => {
+    if (isEffectiveAdHocSession) {
+      setEndSessionProOnlyModalOpen(true);
+      return;
+    }
     if (!calc.isBalanced && getRebalanceDirection(calc.totalIn, calc.totalOut)) {
       setRebalanceModalOpen(true);
     } else {
@@ -79,7 +88,8 @@ export function PayoutTable() {
     setSessionInProgress(false);
   };
 
-  const tableLocked = endSessionModalOpen || rebalanceModalOpen;
+  const tableLocked =
+    endSessionModalOpen || rebalanceModalOpen || endSessionProOnlyModalOpen;
 
   const openGroupPicker = () => {
     if (tableLocked) return;
@@ -438,10 +448,14 @@ export function PayoutTable() {
             <button
               className="btn btn-session-action btn-icon-only btn-end-session-dominant"
               type="button"
-              disabled={tableLocked || !calc.selectedGroupId || !hasTableEdits}
+              disabled={tableLocked || !hasTableEdits}
               onClick={openEndSessionModal}
               aria-label="End session"
-              title={!calc.selectedGroupId ? 'Select a group (New session) first' : undefined}
+              title={
+                isEffectiveAdHocSession
+                  ? `${SOLO_TABLE_LABEL}: End session is Pro only — select a group to save`
+                  : undefined
+              }
             >
               <span aria-hidden="true">
                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" xmlns="http://www.w3.org/2000/svg">
@@ -600,6 +614,51 @@ export function PayoutTable() {
           </div>
         );
       })()}
+
+      {/* Ad Hoc / no resolved group: End session requires Pro + named group */}
+      {endSessionProOnlyModalOpen && (
+        <div
+          className="modal active"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="end-session-pro-only-title"
+        >
+          <div
+            className="modal-overlay"
+            onClick={() => setEndSessionProOnlyModalOpen(false)}
+          />
+          <div className="modal-content" role="document">
+            <div className="modal-header">
+              <h2 id="end-session-pro-only-title" className="modal-title">
+                Pro feature
+              </h2>
+              <button
+                type="button"
+                className="modal-close"
+                onClick={() => setEndSessionProOnlyModalOpen(false)}
+                aria-label="Close"
+              >
+                ✕
+              </button>
+            </div>
+            <div className="modal-body">
+              <p className="muted-text" style={{ marginBottom: '1rem' }}>
+                Ending and saving a session is available in Pro only. Select a named group for your
+                table (New session → choose a group) to use this feature.
+              </p>
+              <div style={{ display: 'flex', gap: '0.75rem', justifyContent: 'flex-end', flexWrap: 'wrap' }}>
+                <button
+                  type="button"
+                  className="btn btn-primary"
+                  onClick={() => setEndSessionProOnlyModalOpen(false)}
+                >
+                  OK
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* New session: reset table confirmation modal */}
       {resetTableConfirmOpen && (

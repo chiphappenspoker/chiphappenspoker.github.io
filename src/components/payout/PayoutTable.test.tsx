@@ -15,6 +15,7 @@ const mockCalcBase = {
   rows: [],
   buyIn: '30',
   currency: 'EUR',
+  groupsLoading: false,
   selectedGroup: { id: 'g1', name: 'Friday', created_by: 'u1', created_at: '', updated_at: '' },
   selectedGroupId: 'g1' as string | null,
   setSelectedGroupId: vi.fn(),
@@ -140,4 +141,46 @@ describe('PayoutTable session status messaging', () => {
     expect(screen.getByRole('button', { name: /end session/i })).toBeDisabled();
   });
 
+  it('shows Pro-only modal when ending an Ad Hoc session', () => {
+    mockUsePayoutCalculator.mockReturnValue({
+      ...mockCalcBase,
+      selectedGroupId: null,
+      selectedGroup: null,
+      rows: [
+        { id: 'r1', name: 'Alice', buyIn: '50', cashOut: '50', paid: false, settled: false },
+      ],
+      clearTable: vi.fn(),
+    });
+
+    render(<PayoutTable />);
+
+    const endBtn = screen.getByRole('button', { name: /end session/i });
+    expect(endBtn).not.toBeDisabled();
+    fireEvent.click(endBtn);
+
+    expect(screen.getByRole('dialog', { name: /pro feature/i })).toBeInTheDocument();
+    expect(screen.getByText(/Ending and saving a session is available in Pro only/i)).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: /^ok$/i }));
+    expect(screen.queryByRole('dialog', { name: /pro feature/i })).not.toBeInTheDocument();
+  });
+
+  it('shows Pro-only modal when signed out but localStorage still has a stale group id (UI shows Ad Hoc)', () => {
+    mockUsePayoutCalculator.mockReturnValue({
+      ...mockCalcBase,
+      selectedGroupId: 'persisted-from-last-login',
+      selectedGroup: null,
+      rows: [
+        { id: 'r1', name: 'Alice', buyIn: '50', cashOut: '50', paid: false, settled: false },
+      ],
+      clearTable: vi.fn(),
+    });
+
+    render(<PayoutTable />);
+
+    fireEvent.click(screen.getByRole('button', { name: /end session/i }));
+
+    expect(screen.getByRole('dialog', { name: /pro feature/i })).toBeInTheDocument();
+    expect(screen.getByText(/Pro only/i)).toBeInTheDocument();
+  });
 });

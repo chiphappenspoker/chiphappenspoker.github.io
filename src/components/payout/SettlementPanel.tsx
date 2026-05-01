@@ -1,11 +1,11 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useSettings } from '@/hooks/useSettings';
 import { normalizeRevtag, buildRevolutLink } from '@/lib/payments/revolut';
 import { fmt, parseNum } from '@/lib/calc/formatting';
 import { PayoutRowData, Transaction } from '@/lib/types';
-import { normalizeSettingsData, loadSettingsData, saveSettingsData } from '@/lib/storage/settings-store';
+import { normalizeSettingsData, loadSettingsData } from '@/lib/storage/settings-store';
 import { useToast } from '@/hooks/useToast';
 
 const EMPTY_SUSPECTS: { name: string; revtag: string }[] = [];
@@ -34,17 +34,13 @@ export function SettlementPanel({
   transactions,
   usualSuspectsOverride,
 }: SettlementPanelProps) {
-  const { settings, reload } = useSettings();
+  const { settings } = useSettings();
   const { showToast } = useToast();
-  const promptedRef = useRef(false);
   const [receiveItems, setReceiveItems] = useState<PaymentItem[]>([]);
   const [payItems, setPayItems] = useState<PaymentItem[]>([]);
 
   useEffect(() => {
-    if (!visible) {
-      promptedRef.current = false;
-      return;
-    }
+    if (!visible) return;
     buildPaymentLinks();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [visible, rows, settlementMode, settings, usualSuspectsOverride]);
@@ -53,44 +49,13 @@ export function SettlementPanel({
     const raw = await loadSettingsData();
     const settingsData = normalizeSettingsData(raw, EMPTY_SUSPECTS);
     const suspectsList = usualSuspectsOverride ?? settingsData.usualSuspects;
-    let settingsChanged = false;
-    let profileRevtag = normalizeRevtag(settingsData.profile?.revtag);
-
-    const ensureProfileRevtag = () => {
-      if (!profileRevtag && !promptedRef.current) {
-        const result = window.prompt('Enter your profile revtag', '@');
-        if (result !== null) {
-          const trimmed = result.trim();
-          profileRevtag = trimmed === '@' ? '' : trimmed;
-          if (profileRevtag) {
-            settingsData.profile.revtag = profileRevtag;
-            settingsChanged = true;
-          }
-        }
-      }
-      return profileRevtag;
-    };
+    const profileRevtag = normalizeRevtag(settingsData.profile?.revtag);
 
     const getSuspectRevtag = (name: string) => {
       const entry = suspectsList.find(
         (item) => (item.name || '').toLowerCase() === name.toLowerCase()
       );
       if (entry && normalizeRevtag(entry.revtag)) return entry.revtag;
-      if (promptedRef.current) return '';
-      const result = window.prompt(`Enter revtag for ${name}`, '@');
-      if (result !== null) {
-        const trimmed = result.trim();
-        const entered = trimmed === '@' ? '' : trimmed;
-        if (entered) {
-          if (entry) {
-            entry.revtag = entered;
-          } else {
-            settingsData.usualSuspects.push({ name, revtag: entered });
-          }
-          settingsChanged = true;
-          return entered;
-        }
-      }
       return '';
     };
 
@@ -119,26 +84,14 @@ export function SettlementPanel({
           const link = buildRevolutLink(revtag, payout, currency);
           receive.push({ label: name, amount: payout, link });
         } else {
-          const revtag = ensureProfileRevtag();
-          const link = buildRevolutLink(revtag, Math.abs(payout), currency);
+          const link = buildRevolutLink(profileRevtag, Math.abs(payout), currency);
           pay.push({ label: name, amount: Math.abs(payout), link });
         }
       }
     }
 
-    promptedRef.current = true;
-
     setReceiveItems(receive);
     setPayItems(pay);
-
-    if (settingsChanged) {
-      try {
-        await saveSettingsData(settingsData);
-        await reload();
-      } catch {
-        /* ignore */
-      }
-    }
   };
 
   const buildSummaryText = async (): Promise<string> => {

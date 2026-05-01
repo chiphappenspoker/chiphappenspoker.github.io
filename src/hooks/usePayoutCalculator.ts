@@ -19,7 +19,7 @@ import { useGroups } from './useGroups';
 
 export function usePayoutCalculator() {
   const { settings } = useSettings();
-  const { groups, getGroupMembers, loggedIn } = useGroups();
+  const { groups, getGroupMembers, loggedIn, loading: groupsLoading } = useGroups();
   const [groupMembers, setGroupMembers] = useState<{ name: string; revtag: string }[]>([]);
 
   const [rows, setRows] = useState<PayoutRowData[]>([]);
@@ -468,5 +468,6 @@ export function usePayoutCalculator() {
     fmtInt,
     parseNum,
     usualSuspectsForSettlement: selectedGroupId ? groupMembers : settings.usualSuspects,
+    groupsLoading,
   };
 }
