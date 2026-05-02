@@ -5,7 +5,7 @@ import { createContext, useContext, useState, useCallback, useRef, type ReactNod
 interface SelectGroupModalContextValue {
   openSelectGroupModal: boolean;
   setOpenSelectGroupModal: (open: boolean) => void;
-  /** Register a callback to run when user selects a named group (not solo table or close). Cleared when modal closes. */
+  /** Register a callback to run when user selects a named group (not Ad Hoc or close). Cleared when modal closes. */
   setGroupSelectedCallback: (cb: (() => void) | null) => void;
   /** Called by SelectGroupModal when user selected a group; runs the registered callback. */
   notifyGroupSelected: () => void;

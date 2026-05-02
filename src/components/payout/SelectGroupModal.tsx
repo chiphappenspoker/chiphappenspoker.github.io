@@ -9,7 +9,7 @@ import { PAYOUT_STORAGE_KEY, SELECTED_GROUP_CHANGED_EVENT, SOLO_TABLE_LABEL } fr
 interface SelectGroupModalProps {
   open: boolean;
   onClose: () => void;
-  /** Called when user selects a group with an id (not solo table). */
+  /** Called when user selects a group with an id (not Ad Hoc). */
   onGroupSelected?: () => void;
 }
 

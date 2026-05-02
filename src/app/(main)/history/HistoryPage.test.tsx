@@ -140,7 +140,7 @@ describe('HistoryPage', () => {
       reload: vi.fn(),
     });
     render(<HistoryPage />);
-    expect(screen.getByRole('link', { name: /solo table · eur/i })).toHaveAttribute(
+    expect(screen.getByRole('link', { name: /ad hoc · eur/i })).toHaveAttribute(
       'href',
       '/history?sessionId=s1'
     );
