@@ -3,7 +3,11 @@ import { supabase, isSupabasePlaceholder } from '../supabase/client';
 import { startSyncEngine, stopSyncEngine } from '../sync/sync-engine';
 import { migrateLocalToCloud, needsMigration } from './migrate-local-to-cloud';
 import { useToast } from '@/hooks/useToast';
-import { getActivateRedirectUrl, getPasswordResetRedirectUrl } from './auth-redirect-urls';
+import {
+  getActivateRedirectUrl,
+  getOAuthRedirectUrl,
+  getPasswordResetRedirectUrl,
+} from './auth-redirect-urls';
 import {
   bumpSessionGenerationAndStore,
   clearStoredSessionGeneration,
@@ -159,7 +163,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return error ? { error: wrapAuthError(error.message) } : {};
   };
   const signInWithGoogle = async () => {
-    const redirectTo = getActivateRedirectUrl();
+    const redirectTo = getOAuthRedirectUrl();
     const { error } = await supabase.auth.signInWithOAuth({
       provider: 'google',
       options: redirectTo ? { redirectTo } : undefined,

@@ -12,10 +12,15 @@ function appBaseUrl(): string {
   return root.endsWith('/') ? root.slice(0, -1) : root;
 }
 
-/** Confirm signup / OAuth return URL (Supabase Redirect URLs allow list). */
+/** Email signup confirmation link target (Supabase Redirect URLs allow list). */
 export function getActivateRedirectUrl(): string {
   const base = appBaseUrl();
   return base ? `${base}/activate` : '';
+}
+
+/** OAuth (e.g. Google) callback redirect — main app root, not /activate. */
+export function getOAuthRedirectUrl(): string {
+  return appBaseUrl();
 }
 
 /** Password recovery email link target (Supabase Redirect URLs allow list). */
