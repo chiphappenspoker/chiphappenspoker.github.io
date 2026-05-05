@@ -109,7 +109,7 @@ export default function LeaderboardPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [categoryIndex, setCategoryIndex] = useState(0);
-  const touchStartXRef = useRef<number>(0);
+  const carouselRef = useRef<HTMLDivElement>(null);
 
   const { fromDate, toDate } = getDateRange(period);
 
@@ -160,6 +160,56 @@ export default function LeaderboardPage() {
       cancelled = true;
     };
   }, [user, groupId, fromDate, toDate]);
+
+  /** Captures horizontal drags so Chrome/Android does not treat swipe-right as browser "back". */
+  useEffect(() => {
+    const el = carouselRef.current;
+    if (!el) return;
+
+    const SWIPE_MIN = 50;
+    const LOCK_HORIZ_PX = 14;
+
+    let startX = 0;
+    let startY = 0;
+
+    const onTouchStart = (e: TouchEvent) => {
+      const t = e.touches[0];
+      if (!t) return;
+      startX = t.clientX;
+      startY = t.clientY;
+    };
+
+    const onTouchMove = (e: TouchEvent) => {
+      const t = e.touches[0];
+      if (!t) return;
+      const dx = t.clientX - startX;
+      const dy = t.clientY - startY;
+      if (Math.abs(dx) > LOCK_HORIZ_PX && Math.abs(dx) > Math.abs(dy)) {
+        e.preventDefault();
+      }
+    };
+
+    const onTouchEnd = (e: TouchEvent) => {
+      const t = e.changedTouches[0];
+      if (!t) return;
+      const dx = t.clientX - startX;
+      const dy = t.clientY - startY;
+      if (Math.abs(dx) < SWIPE_MIN) return;
+      if (Math.abs(dy) > Math.abs(dx)) return;
+      if (dx < -SWIPE_MIN) setCategoryIndex((i) => (i + 1) % 5);
+      else if (dx > SWIPE_MIN) setCategoryIndex((i) => (i - 1 + 5) % 5);
+    };
+
+    el.addEventListener('touchstart', onTouchStart, { passive: true });
+    el.addEventListener('touchmove', onTouchMove, { passive: false });
+    el.addEventListener('touchend', onTouchEnd, { passive: true });
+
+    return () => {
+      el.removeEventListener('touchstart', onTouchStart);
+      el.removeEventListener('touchmove', onTouchMove);
+      el.removeEventListener('touchend', onTouchEnd);
+    };
+  }, [groupId, rows.length]);
 
   if (authLoading) {
     return (
@@ -269,20 +319,13 @@ export default function LeaderboardPage() {
           ) : rows.length === 0 ? (
             <p className="muted-text">No data for this group and period.</p>
           ) : (
-            <div className="leaderboard-carousel" role="region" aria-label="Leaderboard by category">
-              <div
-                className="leaderboard-carousel-header"
-                onTouchStart={(e) => {
-                  touchStartXRef.current = e.touches[0]?.clientX ?? 0;
-                }}
-                onTouchEnd={(e) => {
-                  const startX = touchStartXRef.current;
-                  const endX = e.changedTouches[0]?.clientX ?? startX;
-                  const deltaX = endX - startX;
-                  if (deltaX < -50) setCategoryIndex((i) => (i + 1) % 5);
-                  if (deltaX > 50) setCategoryIndex((i) => (i - 1 + 5) % 5);
-                }}
-              >
+            <div
+              ref={carouselRef}
+              className="leaderboard-carousel"
+              role="region"
+              aria-label="Leaderboard by category"
+            >
+              <div className="leaderboard-carousel-header">
                 <button
                   type="button"
                   className="leaderboard-arrow"

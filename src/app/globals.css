@@ -1101,7 +1101,11 @@ footer { text-align: center; color: var(--color-muted); font-size: 12px; padding
 .page-payout-table tfoot th:nth-child(4) { text-align: right; }
 
 /* ── Leaderboard carousel ── */
-.leaderboard-carousel { margin-top: var(--space-md); }
+.leaderboard-carousel {
+  margin-top: var(--space-md);
+  /* Reduce Chrome/Android horizontal overscroll → history back stealing swipe-right */
+  overscroll-behavior-x: none;
+}
 .leaderboard-carousel-header {
   display: flex;
   align-items: center;
