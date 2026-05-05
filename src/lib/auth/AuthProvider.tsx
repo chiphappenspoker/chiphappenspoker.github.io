@@ -1,22 +1,14 @@
 import { createContext, useContext, useEffect, useRef, useState, ReactNode } from 'react';
 import { supabase, isSupabasePlaceholder } from '../supabase/client';
-import { BASE_PATH } from '../constants';
 import { startSyncEngine, stopSyncEngine } from '../sync/sync-engine';
 import { migrateLocalToCloud, needsMigration } from './migrate-local-to-cloud';
 import { useToast } from '@/hooks/useToast';
+import { getActivateRedirectUrl, getPasswordResetRedirectUrl } from './auth-redirect-urls';
 import {
   bumpSessionGenerationAndStore,
   clearStoredSessionGeneration,
   validateSessionGeneration,
 } from './session-generation';
-
-/** Full URL where users land after clicking "Activate account" in the confirmation email (must match Supabase Redirect URLs allow list). */
-function getEmailRedirectUrl(): string {
-  if (typeof window === 'undefined') return '';
-  const origin = window.location.origin;
-  const base = origin.endsWith('/') ? `${origin.slice(0, -1)}${BASE_PATH}` : `${origin}${BASE_PATH}`;
-  return `${base}/activate`;
-}
 
 async function ensureProfile(userId: string, metadata: { full_name?: string; name?: string; email?: string }): Promise<void> {
   // Only create a profile if one does not already exist to avoid overwriting
@@ -64,6 +56,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     const { data: listener } = supabase.auth.onAuthStateChange((event, session) => {
       void (async () => {
+        if (event === 'PASSWORD_RECOVERY' && typeof window !== 'undefined') {
+          const target = getPasswordResetRedirectUrl();
+          if (target) {
+            try {
+              const path = new URL(target).pathname;
+              if (!window.location.pathname.endsWith(path)) {
+                window.location.replace(target + window.location.search + window.location.hash);
+                return;
+              }
+            } catch {
+              /* ignore malformed URL */
+            }
+          }
+        }
+
         if (session?.user) {
           const u = { id: session.user.id, email: session.user.email ?? '' };
           setUser(u);
@@ -143,7 +150,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return error ? { error: wrapAuthError(error.message) } : {};
   };
   const signUp = async (email: string, password: string) => {
-    const redirectTo = getEmailRedirectUrl();
+    const redirectTo = getActivateRedirectUrl();
     const { error } = await supabase.auth.signUp({
       email,
       password,
@@ -152,7 +159,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return error ? { error: wrapAuthError(error.message) } : {};
   };
   const signInWithGoogle = async () => {
-    const redirectTo = getEmailRedirectUrl();
+    const redirectTo = getActivateRedirectUrl();
     const { error } = await supabase.auth.signInWithOAuth({
       provider: 'google',
       options: redirectTo ? { redirectTo } : undefined,

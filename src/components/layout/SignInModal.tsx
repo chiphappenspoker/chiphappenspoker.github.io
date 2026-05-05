@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '@/lib/auth/AuthProvider';
+import { getPasswordResetRedirectUrl } from '@/lib/auth/auth-redirect-urls';
 
 
 export function SignInModal({ open, onClose }: { open: boolean; onClose: () => void }) {
@@ -31,8 +32,9 @@ export function SignInModal({ open, onClose }: { open: boolean; onClose: () => v
     if (mode === 'reset') {
       // Password reset logic
       try {
+        const redirectTo = getPasswordResetRedirectUrl();
         const { error } = await import('@/lib/supabase/client').then(({ supabase }) =>
-          supabase.auth.resetPasswordForEmail(email)
+          supabase.auth.resetPasswordForEmail(email, redirectTo ? { redirectTo } : undefined)
         );
         if (error) setError(error.message);
         else setInfo('Password reset email sent. Check your inbox.');

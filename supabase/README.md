@@ -87,6 +87,8 @@ The default Supabase signup confirmation email does not mention ChipHappens. To 
 
 Other templates (invite, recovery, magic link, etc.) can be customized the same way in `config.toml` and Dashboard.
 
+**Password reset:** The app sends users to `/reset-password` on your deployed origin (see `getPasswordResetRedirectUrl()`). In the Dashboard, open **Authentication → URL Configuration** and add that full URL (for example `https://your-domain.example/reset-password`) to **Redirect URLs**, alongside your `/activate` URL.
+
 ## Troubleshooting: group members visible locally but not on PWA
 
 If the group creator sees invited members on the local/dev site but not in the deployed PWA (and the user exists in `group_members` and `profiles` in Supabase):
