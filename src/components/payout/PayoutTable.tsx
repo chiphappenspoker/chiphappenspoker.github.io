@@ -34,7 +34,9 @@ export function PayoutTable() {
   const { openSelectGroupModal, setOpenSelectGroupModal, setGroupSelectedCallback, clearGroupSelectedCallback } =
     useSelectGroupModal();
   const [savingSession, setSavingSession] = useState(false);
+  const [endSessionConfirmOpen, setEndSessionConfirmOpen] = useState(false);
   const [endSessionModalOpen, setEndSessionModalOpen] = useState(false);
+  const [uploadFailedOnEnd, setUploadFailedOnEnd] = useState(false);
   /** When false, show New Session; when true (and user), show End Session. Toggles on New Session click and when End Session modal closes. */
   const [sessionInProgress, setSessionInProgress] = useState(false);
   const [usualSuspectsModalOpen, setUsualSuspectsModalOpen] = useState(false);
@@ -59,7 +61,7 @@ export function PayoutTable() {
     if (!calc.isBalanced && getRebalanceDirection(calc.totalIn, calc.totalOut)) {
       setRebalanceModalOpen(true);
     } else {
-      setEndSessionModalOpen(true);
+      setEndSessionConfirmOpen(true);
     }
   };
 
@@ -80,16 +82,36 @@ export function PayoutTable() {
       });
     }
     setRebalanceModalOpen(false);
+    setEndSessionConfirmOpen(true);
+  };
+
+  const handleConfirmEndAndUpload = async () => {
+    const saved = await handleSaveSession();
+    setEndSessionConfirmOpen(false);
+    setUploadFailedOnEnd(!saved);
     setEndSessionModalOpen(true);
+  };
+
+  const handleRetryUpload = async () => {
+    const saved = await handleSaveSession();
+    if (saved) {
+      setUploadFailedOnEnd(false);
+    }
   };
 
   const closeEndSessionModal = () => {
     setEndSessionModalOpen(false);
-    setSessionInProgress(false);
+    if (!uploadFailedOnEnd) {
+      setSessionInProgress(false);
+    }
+    setUploadFailedOnEnd(false);
   };
 
   const tableLocked =
-    endSessionModalOpen || rebalanceModalOpen || endSessionProOnlyModalOpen;
+    endSessionConfirmOpen ||
+    endSessionModalOpen ||
+    rebalanceModalOpen ||
+    endSessionProOnlyModalOpen;
 
   const openGroupPicker = () => {
     if (tableLocked) return;
@@ -213,7 +235,7 @@ export function PayoutTable() {
       }
     };
 
-    if (!sessionInProgress || endSessionModalOpen || inactivityReminderOpen) {
+    if (!sessionInProgress || endSessionConfirmOpen || endSessionModalOpen || inactivityReminderOpen) {
       clearInactivityTimer();
       return () => clearInactivityTimer();
     }
@@ -238,7 +260,7 @@ export function PayoutTable() {
       window.removeEventListener('pointerdown', onActivity);
       window.removeEventListener('keydown', onActivity);
     };
-  }, [endSessionModalOpen, inactivityReminderOpen, sessionInProgress]);
+  }, [endSessionConfirmOpen, endSessionModalOpen, inactivityReminderOpen, sessionInProgress]);
 
   if (!calc.initialized) {
     return (
@@ -721,7 +743,67 @@ export function PayoutTable() {
         </div>
       )}
 
-      {/* End session confirmation modal */}
+      {/* End session confirm modal */}
+      {user && endSessionConfirmOpen && (
+        <div
+          className="modal active"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="end-session-confirm-title"
+        >
+          <div
+            className="modal-overlay"
+            onClick={() => setEndSessionConfirmOpen(false)}
+          />
+          <div className="modal-content" role="document">
+            <div className="modal-header">
+              <h2 id="end-session-confirm-title" className="modal-title">
+                End session?
+              </h2>
+              <button
+                type="button"
+                className="modal-close"
+                onClick={() => setEndSessionConfirmOpen(false)}
+                aria-label="Close"
+              >
+                ✕
+              </button>
+            </div>
+            <div className="modal-body">
+              <p className="muted-text" style={{ marginBottom: '1rem' }}>
+                Do you want to end the session and upload?
+              </p>
+              <div
+                style={{
+                  display: 'flex',
+                  gap: '0.75rem',
+                  justifyContent: 'flex-end',
+                  flexWrap: 'wrap',
+                }}
+              >
+                <button
+                  type="button"
+                  className="btn btn-secondary"
+                  disabled={savingSession}
+                  onClick={() => setEndSessionConfirmOpen(false)}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  className="btn btn-primary"
+                  disabled={savingSession}
+                  onClick={() => void handleConfirmEndAndUpload()}
+                >
+                  {savingSession ? 'Uploading…' : 'End & upload'}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* End session summary modal */}
       {user && endSessionModalOpen && (
         <div className="modal active" role="dialog" aria-modal="true" aria-labelledby="end-session-title">
           <div className="modal-overlay" onClick={closeEndSessionModal} />
@@ -738,6 +820,34 @@ export function PayoutTable() {
               </button>
             </div>
             <div className="modal-body">
+              {uploadFailedOnEnd && (
+                <div
+                  className="end-session-upload-failed"
+                  role="alert"
+                  style={{
+                    marginBottom: '1rem',
+                    padding: '0.75rem 1rem',
+                    borderRadius: 'var(--radius-lg)',
+                    border: '1px solid var(--color-warn)',
+                    background: 'rgba(239, 68, 68, 0.08)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    gap: '0.75rem',
+                    flexWrap: 'wrap',
+                  }}
+                >
+                  <span className="warn">Upload failed. Check your connection.</span>
+                  <button
+                    type="button"
+                    className="btn btn-secondary"
+                    disabled={savingSession}
+                    onClick={() => void handleRetryUpload()}
+                  >
+                    {savingSession ? 'Uploading…' : 'Retry'}
+                  </button>
+                </div>
+              )}
               <p className="muted-text" style={{ marginBottom: '1rem' }}>
                 {calc.rows.filter((r) => r.name.trim()).length} players · In: {fmtOptionalDecimals(calc.totalIn)} · Out: {fmtOptionalDecimals(calc.totalOut)}
                 {calc.isBalanced ? ' · Balanced' : ' · Unbalanced'}
@@ -751,30 +861,6 @@ export function PayoutTable() {
                 transactions={calc.transactions}
                 usualSuspectsOverride={calc.usualSuspectsForSettlement}
               />
-
-              <div style={{ display: 'flex', gap: '0.75rem', justifyContent: 'flex-end', flexWrap: 'wrap' }}>
-                <button
-                  type="button"
-                  className="btn btn-secondary"
-                  disabled={savingSession}
-                  onClick={() => setEndSessionModalOpen(false)}
-                >
-                  Discard
-                </button>
-                <button
-                  type="button"
-                  className="btn btn-primary"
-                  disabled={savingSession}
-                  onClick={async () => {
-                    const saved = await handleSaveSession();
-                    if (saved) {
-                      closeEndSessionModal();
-                    }
-                  }}
-                >
-                  {savingSession ? 'Saving…' : 'Save'}
-                </button>
-              </div>
             </div>
           </div>
         </div>
