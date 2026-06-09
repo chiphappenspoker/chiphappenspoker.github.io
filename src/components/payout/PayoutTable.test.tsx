@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent, waitFor, act } from '@testing-library/react';
+import { getRepository } from '@/lib/data/sync-repository';
 import { PayoutTable } from './PayoutTable';
 
 const mockSetOpenSelectGroupModal = vi.fn();
@@ -38,14 +39,62 @@ const mockCalcBase = {
 
 const mockUsePayoutCalculator = vi.fn(() => mockCalcBase);
 
+const mockShowToast = vi.fn();
+const mockSaveGameSession = vi.fn();
+const mockSaveGamePlayer = vi.fn();
+const mockGetGroupMembersWithIds = vi.fn(async () => []);
+const mockGetGamePlayers = vi.fn(async () => []);
+const mockDeleteGamePlayer = vi.fn(async () => undefined);
+
+let mockUser: { id: string } | null = null;
+const signedInUser = { id: 'user-1' };
+
+function setupSignedInCalc(overrides: Partial<typeof mockCalcBase> = {}) {
+  mockUsePayoutCalculator.mockReturnValue({
+    ...mockCalcBase,
+    rows: [
+      { id: 'r1', name: 'Alice', buyIn: '50', cashOut: '50', paid: false, settled: false },
+    ],
+    isBalanced: true,
+    totalIn: 50,
+    totalOut: 50,
+    clearTable: vi.fn(),
+    setSavedSession: vi.fn(),
+    ...overrides,
+  });
+}
+
+function setupRepositorySuccess() {
+  vi.mocked(getRepository).mockReturnValue({
+    saveGameSession: mockSaveGameSession.mockResolvedValue(undefined),
+    saveGamePlayer: mockSaveGamePlayer.mockResolvedValue(undefined),
+    getGroupMembersWithIds: mockGetGroupMembersWithIds,
+    getGamePlayers: mockGetGamePlayers,
+    deleteGamePlayer: mockDeleteGamePlayer,
+  } as unknown as ReturnType<typeof getRepository>);
+}
+
+function setupRepositoryFailure() {
+  vi.mocked(getRepository).mockReturnValue({
+    saveGameSession: mockSaveGameSession.mockRejectedValue(new Error('network')),
+    saveGamePlayer: mockSaveGamePlayer,
+    getGroupMembersWithIds: mockGetGroupMembersWithIds,
+    getGamePlayers: mockGetGamePlayers,
+    deleteGamePlayer: mockDeleteGamePlayer,
+  } as unknown as ReturnType<typeof getRepository>);
+}
+
 vi.mock('@/hooks/usePayoutCalculator', () => ({
   usePayoutCalculator: () => mockUsePayoutCalculator(),
 }));
 vi.mock('@/lib/auth/AuthProvider', () => ({
-  useAuth: () => ({ user: null }),
+  useAuth: () => ({ user: mockUser }),
 }));
 vi.mock('@/hooks/useToast', () => ({
-  useToast: () => ({ showToast: vi.fn() }),
+  useToast: () => ({ showToast: mockShowToast }),
+}));
+vi.mock('./SettlementPanel', () => ({
+  SettlementPanel: () => <div data-testid="settlement-panel">Settlement</div>,
 }));
 vi.mock('@/hooks/useSelectGroupModal', () => ({
   useSelectGroupModal: () => ({
@@ -68,6 +117,7 @@ vi.mock('@/lib/sync/sync-queue', () => ({
 describe('PayoutTable new session group picker behavior', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    mockUser = null;
     mockUsePayoutCalculator.mockReturnValue({
       ...mockCalcBase,
       clearTable: vi.fn(),
@@ -110,6 +160,7 @@ describe('PayoutTable new session group picker behavior', () => {
 describe('PayoutTable session status messaging', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    mockUser = null;
     mockUsePayoutCalculator.mockReturnValue({
       ...mockCalcBase,
       rows: [{ id: 'r1', name: 'Alice', buyIn: '50', cashOut: '50', paid: false, settled: false }],
@@ -182,5 +233,25 @@ describe('PayoutTable session status messaging', () => {
 
     expect(screen.getByRole('dialog', { name: /pro feature/i })).toBeInTheDocument();
     expect(screen.getByText(/Pro only/i)).toBeInTheDocument();
+  });
+});
+
+describe('PayoutTable end session upload flow', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockUser = signedInUser;
+    setupSignedInCalc();
+    setupRepositorySuccess();
+  });
+
+  it('opens confirm modal (not summary) when End Session is clicked', () => {
+    render(<PayoutTable />);
+
+    fireEvent.click(screen.getByRole('button', { name: /end session/i }));
+
+    expect(screen.getByRole('dialog', { name: /end session\?/i })).toBeInTheDocument();
+    expect(screen.getByText(/do you want to end the session and upload/i)).toBeInTheDocument();
+    expect(screen.queryByRole('dialog', { name: /^end session$/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /^save$/i })).not.toBeInTheDocument();
   });
 });
