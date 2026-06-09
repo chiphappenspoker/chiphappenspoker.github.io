@@ -254,4 +254,174 @@ describe('PayoutTable end session upload flow', () => {
     expect(screen.queryByRole('dialog', { name: /^end session$/i })).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /^save$/i })).not.toBeInTheDocument();
   });
+
+  it('dismisses confirm on Cancel without opening summary or uploading', async () => {
+    render(<PayoutTable />);
+
+    fireEvent.click(screen.getByRole('button', { name: /end session/i }));
+    fireEvent.click(screen.getByRole('button', { name: /^cancel$/i }));
+
+    expect(screen.queryByRole('dialog', { name: /end session\?/i })).not.toBeInTheDocument();
+    expect(screen.queryByTestId('settlement-panel')).not.toBeInTheDocument();
+    expect(mockSaveGameSession).not.toHaveBeenCalled();
+  });
+
+  it('uploads and opens summary without Save or Discard buttons', async () => {
+    render(<PayoutTable />);
+
+    fireEvent.click(screen.getByRole('button', { name: /end session/i }));
+    fireEvent.click(screen.getByRole('button', { name: /end & upload/i }));
+
+    await waitFor(() => {
+      expect(mockSaveGameSession).toHaveBeenCalledTimes(1);
+    });
+
+    expect(screen.queryByRole('dialog', { name: /end session\?/i })).not.toBeInTheDocument();
+    expect(screen.getByRole('dialog', { name: /^end session$/i })).toBeInTheDocument();
+    expect(screen.getByTestId('settlement-panel')).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /^save$/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /^discard$/i })).not.toBeInTheDocument();
+    expect(mockShowToast).toHaveBeenCalledWith('Session saved');
+  });
+
+  it('shows Uploading… and disables buttons while saving', async () => {
+    let resolveSave!: () => void;
+    mockSaveGameSession.mockImplementation(
+      () => new Promise<void>((resolve) => { resolveSave = resolve; })
+    );
+
+    render(<PayoutTable />);
+    fireEvent.click(screen.getByRole('button', { name: /end session/i }));
+    fireEvent.click(screen.getByRole('button', { name: /end & upload/i }));
+
+    expect(screen.getByRole('button', { name: /uploading/i })).toBeDisabled();
+    expect(screen.getByRole('button', { name: /^cancel$/i })).toBeDisabled();
+
+    await act(async () => {
+      resolveSave();
+      await Promise.resolve();
+    });
+  });
+
+  it('shows retry banner when upload fails but still opens summary', async () => {
+    setupRepositoryFailure();
+
+    render(<PayoutTable />);
+    fireEvent.click(screen.getByRole('button', { name: /end session/i }));
+    fireEvent.click(screen.getByRole('button', { name: /end & upload/i }));
+
+    await waitFor(() => {
+      expect(screen.getByText(/upload failed/i)).toBeInTheDocument();
+    });
+
+    expect(screen.getByRole('button', { name: /^retry$/i })).toBeInTheDocument();
+    expect(screen.getByTestId('settlement-panel')).toBeInTheDocument();
+    expect(mockShowToast).toHaveBeenCalledWith('Failed to save session');
+  });
+
+  it('clears retry banner after successful retry', async () => {
+    setupRepositoryFailure();
+
+    render(<PayoutTable />);
+    fireEvent.click(screen.getByRole('button', { name: /end session/i }));
+    fireEvent.click(screen.getByRole('button', { name: /end & upload/i }));
+
+    await waitFor(() => {
+      expect(screen.getByRole('button', { name: /^retry$/i })).toBeInTheDocument();
+    });
+
+    setupRepositorySuccess();
+    fireEvent.click(screen.getByRole('button', { name: /^retry$/i }));
+
+    await waitFor(() => {
+      expect(screen.queryByText(/upload failed/i)).not.toBeInTheDocument();
+    });
+
+    expect(mockSaveGameSession).toHaveBeenCalledTimes(2);
+    expect(mockShowToast).toHaveBeenLastCalledWith('Session saved');
+  });
+
+  it('keeps session in progress after closing summary when upload failed', async () => {
+    setupRepositoryFailure();
+
+    render(<PayoutTable />);
+
+    fireEvent.click(screen.getByRole('button', { name: /end session/i }));
+    fireEvent.click(screen.getByRole('button', { name: /end & upload/i }));
+
+    await waitFor(() => {
+      expect(screen.getByRole('dialog', { name: /^end session$/i })).toBeInTheDocument();
+    });
+
+    fireEvent.click(screen.getByRole('button', { name: /^close$/i }));
+
+    expect(screen.queryByRole('dialog', { name: /^end session$/i })).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: /end session/i }));
+    expect(screen.getByRole('dialog', { name: /end session\?/i })).toBeInTheDocument();
+  });
+
+  it('ends session after closing summary when upload succeeded', async () => {
+    render(<PayoutTable />);
+
+    fireEvent.click(screen.getByRole('button', { name: /end session/i }));
+    fireEvent.click(screen.getByRole('button', { name: /end & upload/i }));
+
+    await waitFor(() => {
+      expect(screen.getByRole('dialog', { name: /^end session$/i })).toBeInTheDocument();
+    });
+
+    fireEvent.click(screen.getByRole('button', { name: /^close$/i }));
+
+    expect(screen.queryByRole('dialog', { name: /^end session$/i })).not.toBeInTheDocument();
+    expect(mockSaveGameSession).toHaveBeenCalledTimes(1);
+  });
+
+  it('updates the same session when ending again after edits', async () => {
+    let currentSessionId: string | null = null;
+    const setSavedSession = vi.fn((id: string) => { currentSessionId = id; });
+
+    mockUsePayoutCalculator.mockImplementation(() => ({
+      ...mockCalcBase,
+      get currentSessionId() { return currentSessionId; },
+      setSavedSession,
+      rows: [
+        { id: 'r1', name: 'Alice', buyIn: '50', cashOut: '50', paid: false, settled: false },
+      ],
+      isBalanced: true,
+      totalIn: 50,
+      totalOut: 50,
+      clearTable: vi.fn(),
+    }));
+
+    const { rerender } = render(<PayoutTable />);
+
+    fireEvent.click(screen.getByRole('button', { name: /end session/i }));
+    fireEvent.click(screen.getByRole('button', { name: /end & upload/i }));
+    await waitFor(() => expect(setSavedSession).toHaveBeenCalledTimes(1));
+    const firstSessionId = setSavedSession.mock.calls[0][0] as string;
+
+    fireEvent.click(screen.getByRole('button', { name: /^close$/i }));
+
+    mockUsePayoutCalculator.mockImplementation(() => ({
+      ...mockCalcBase,
+      get currentSessionId() { return firstSessionId; },
+      setSavedSession,
+      rows: [
+        { id: 'r1', name: 'Alice', buyIn: '60', cashOut: '60', paid: false, settled: false, dbPlayerId: 'p1' },
+      ],
+      isBalanced: true,
+      totalIn: 60,
+      totalOut: 60,
+      clearTable: vi.fn(),
+    }));
+    rerender(<PayoutTable />);
+
+    fireEvent.click(screen.getByRole('button', { name: /end session/i }));
+    fireEvent.click(screen.getByRole('button', { name: /end & upload/i }));
+
+    await waitFor(() => expect(setSavedSession).toHaveBeenCalledTimes(2));
+    expect(setSavedSession.mock.calls[1][0]).toBe(firstSessionId);
+    expect(mockShowToast).toHaveBeenLastCalledWith('Session updated');
+  });
 });
