@@ -168,18 +168,6 @@ export interface SettingsData {
 
 /* ── Share Data Models ── */
 
-export interface PayoutShareRow {
-  name: string;
-  in: string;
-  out: string;
-  settled: boolean;
-}
-
-export interface PayoutShareData {
-  rows: PayoutShareRow[];
-  buyIn: string;
-}
-
 export interface SidePotShareRow {
   name: string;
   bet: string;

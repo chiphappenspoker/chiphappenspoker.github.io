@@ -5,7 +5,6 @@ import { PayoutRowData } from '@/lib/types';
 import { parseNum, fmt, fmtInt } from '@/lib/calc/formatting';
 import { calculatePayouts } from '@/lib/calc/payout';
 import { computeGreedyTransactions } from '@/lib/calc/settlement';
-import { decodePayoutShareData } from '@/lib/sharing/payout-share';
 import { getLocalStorage, setLocalStorage, removeLocalStorage } from '@/lib/storage/local-storage';
 import { getRepository } from '@/lib/data/sync-repository';
 import {
@@ -182,7 +181,7 @@ export function usePayoutCalculator() {
     [applyLoadedSharedSession]
   );
 
-  // Initialize from share URL or localStorage
+  // Initialize from ?code= share link or localStorage
   useEffect(() => {
     const init = async () => {
       const params = new URLSearchParams(window.location.search);
@@ -197,31 +196,6 @@ export function usePayoutCalculator() {
         }
         const loaded = await loadFromShareCode(shareCode);
         if (loaded) return;
-      }
-
-      const shareData = params.get('s') || params.get('share');
-
-      if (shareData) {
-        try {
-          const data = await decodePayoutShareData(shareData);
-          if (data?.rows) {
-            if (data.buyIn) setBuyInRaw(data.buyIn);
-            setRows(
-              data.rows.map((r) => ({
-                id: generateId(),
-                name: r.name ?? '',
-                buyIn: r.in ?? '',
-                cashOut: r.out ?? '',
-                settled: r.settled ?? false,
-                paid: r.settled ?? false,
-              }))
-            );
-            setInitialized(true);
-            return;
-          }
-        } catch {
-          /* ignore bad share data */
-        }
       }
 
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
