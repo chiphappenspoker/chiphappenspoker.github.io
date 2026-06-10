@@ -21,7 +21,7 @@ export const localRepository: Repository = {
     return list;
   },
   async getGameSessionsForUser(filters?: GameSessionsForUserFilters): Promise<DbGameSession[]> {
-    const list = await this.getGameSessions();
+    const list = (await this.getGameSessions()).filter((s) => s.status !== 'active');
     if (!filters) return list;
     let out = list;
     if (filters.participantUserId) {
@@ -97,6 +97,12 @@ export const localRepository: Repository = {
   },
   async getGroupByInviteCode(): Promise<DbGroup | null> {
     return Promise.resolve(null);
+  },
+  async getSessionByShareCode() {
+    return null;
+  },
+  async upsertSharedSession() {
+    return null;
   },
   async getGroupMembers() {
     return [];

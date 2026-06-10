@@ -25,6 +25,9 @@ const mockCalcBase = {
   usualSuspectsForSettlement: [],
   allSuspects: [],
   currentSessionId: null as string | null,
+  sharedSessionCode: null as string | null,
+  sessionCreatedBy: null as string | null,
+  shareCodeAuthRequired: false,
   clearTable: vi.fn(),
   setSavedSession: vi.fn(),
   addRow: vi.fn(),
@@ -33,7 +36,6 @@ const mockCalcBase = {
   removeRow: vi.fn(),
   setBuyIn: vi.fn(),
   getPlayerNames: vi.fn(() => []),
-  getShareUrl: vi.fn(async () => 'https://example.com/share'),
   setRowsFromSelectedNames: vi.fn(),
 };
 
@@ -45,6 +47,19 @@ const mockSaveGamePlayer = vi.fn();
 const mockGetGroupMembersWithIds = vi.fn(async () => []);
 const mockGetGamePlayers = vi.fn(async () => []);
 const mockDeleteGamePlayer = vi.fn(async () => undefined);
+const mockGetGameSession = vi.fn(async () => ({
+  id: 'sess-1',
+  created_by: 'user-1',
+  group_id: 'g1',
+  session_date: '2026-06-10',
+  currency: 'EUR',
+  default_buy_in: '30',
+  settlement_mode: 'greedy',
+  status: 'active',
+  share_code: 'abc12345',
+  created_at: '2026-06-10T10:00:00Z',
+  updated_at: '2026-06-10T10:00:00Z',
+}));
 
 let mockUser: { id: string } | null = null;
 const signedInUser = { id: 'user-1' };
@@ -65,12 +80,28 @@ function setupSignedInCalc(overrides: Partial<typeof mockCalcBase> = {}) {
 }
 
 function setupRepositorySuccess() {
+  mockGetGameSession.mockResolvedValue({
+    id: 'sess-1',
+    created_by: 'user-1',
+    group_id: 'g1',
+    session_date: '2026-06-10',
+    currency: 'EUR',
+    default_buy_in: '30',
+    settlement_mode: 'greedy',
+    status: 'active',
+    share_code: 'abc12345',
+    created_at: '2026-06-10T10:00:00Z',
+    updated_at: '2026-06-10T10:00:00Z',
+  });
   vi.mocked(getRepository).mockReturnValue({
     saveGameSession: mockSaveGameSession.mockResolvedValue(undefined),
     saveGamePlayer: mockSaveGamePlayer.mockResolvedValue(undefined),
     getGroupMembersWithIds: mockGetGroupMembersWithIds,
     getGamePlayers: mockGetGamePlayers,
+    getGameSession: mockGetGameSession,
     deleteGamePlayer: mockDeleteGamePlayer,
+    upsertSharedSession: vi.fn(),
+    getSessionByShareCode: vi.fn(),
   } as unknown as ReturnType<typeof getRepository>);
 }
 
@@ -236,6 +267,38 @@ describe('PayoutTable session status messaging', () => {
   });
 });
 
+describe('PayoutTable share flow', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockUser = signedInUser;
+    setupSignedInCalc();
+    setupRepositorySuccess();
+    Object.assign(navigator, {
+      clipboard: { writeText: vi.fn().mockResolvedValue(undefined) },
+    });
+  });
+
+  it('share uploads active session and copies code link', async () => {
+    render(<PayoutTable />);
+
+    fireEvent.click(screen.getByRole('button', { name: /options/i }));
+    fireEvent.click(screen.getByRole('button', { name: /^share$/i }));
+
+    await waitFor(() => {
+      expect(mockSaveGameSession).toHaveBeenCalledWith(
+        expect.objectContaining({ status: 'active' })
+      );
+    });
+
+    await waitFor(() => {
+      expect(navigator.clipboard.writeText).toHaveBeenCalledWith(
+        expect.stringContaining('code=abc12345')
+      );
+    });
+    expect(mockShowToast).toHaveBeenCalledWith('Share link copied to clipboard!');
+  });
+});
+
 describe('PayoutTable end session upload flow', () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -274,6 +337,9 @@ describe('PayoutTable end session upload flow', () => {
 
     await waitFor(() => {
       expect(mockSaveGameSession).toHaveBeenCalledTimes(1);
+      expect(mockSaveGameSession).toHaveBeenCalledWith(
+        expect.objectContaining({ status: 'settled' })
+      );
     });
 
     expect(screen.queryByRole('dialog', { name: /end session\?/i })).not.toBeInTheDocument();
@@ -294,6 +360,7 @@ describe('PayoutTable end session upload flow', () => {
     fireEvent.click(screen.getByRole('button', { name: /end session/i }));
     fireEvent.click(screen.getByRole('button', { name: /end & upload/i }));
 
+    await waitFor(() => expect(mockSaveGameSession).toHaveBeenCalled());
     expect(screen.getByRole('button', { name: /uploading/i })).toBeDisabled();
     expect(screen.getByRole('button', { name: /^cancel$/i })).toBeDisabled();
 

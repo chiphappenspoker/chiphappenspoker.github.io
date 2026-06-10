@@ -65,6 +65,25 @@ export interface DbGamePlayer {
   updated_at: string;
 }
 
+export interface SharedSessionPlayerPayload {
+  id: string;
+  player_name: string;
+  buy_in: number;
+  cash_out: number;
+  net_result: number;
+  settled: boolean;
+  user_id: string | null;
+  created_at: string;
+}
+
+export interface SharedSessionPayload {
+  default_buy_in: string;
+  currency: string;
+  settlement_mode: string;
+  status?: 'active' | 'settled';
+  players: SharedSessionPlayerPayload[];
+}
+
 export interface PlayerStats {
   user_id: string;
   group_id: string | null;

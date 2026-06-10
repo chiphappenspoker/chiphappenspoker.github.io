@@ -5,7 +5,8 @@ import { usePayoutCalculator } from '@/hooks/usePayoutCalculator';
 import { useAuth } from '@/lib/auth/AuthProvider';
 import { getRepository } from '@/lib/data/sync-repository';
 import { clearQueueEntriesForSession } from '@/lib/sync/sync-queue';
-import { parseNum } from '@/lib/calc/formatting';
+import { savePayoutSession } from '@/lib/session/save-payout-session';
+import { getSiteOrigin, BASE_PATH } from '@/lib/constants';
 import { NavMenu } from '@/components/layout/NavMenu';
 import { IconShare } from '@/components/ui/MenuIcons';
 import { PayoutRow } from './PayoutRow';
@@ -49,6 +50,11 @@ export function PayoutTable() {
   const inactivityReminderTimerRef = useRef<number | null>(null);
   const sessionStartBuyInRef = useRef(calc.buyIn);
 
+  useEffect(() => {
+    const code = new URLSearchParams(window.location.search).get('code');
+    if (code) setSessionInProgress(true);
+  }, []);
+
   /** Matches “Ad Hoc” in the UI: no resolved group (e.g. signed out with stale saved group id). */
   const isEffectiveAdHocSession =
     !calc.selectedGroup && !(calc.groupsLoading && user);
@@ -85,15 +91,108 @@ export function PayoutTable() {
     setEndSessionConfirmOpen(true);
   };
 
+  const useSharedRpc = Boolean(
+    calc.sharedSessionCode &&
+      calc.sessionCreatedBy &&
+      user?.id &&
+      calc.sessionCreatedBy !== user.id
+  );
+
+  const saveActiveSession = async (): Promise<{ sessionId: string; shareCode: string } | null> => {
+    if (!user?.id || calc.rows.length === 0) return null;
+    setSavingSession(true);
+    try {
+      const repo = getRepository(true);
+      const result = await savePayoutSession({
+        repo,
+        userId: user.id,
+        rows: calc.rows,
+        buyIn: calc.buyIn,
+        currency: calc.currency,
+        settlementMode: calc.settlementMode,
+        selectedGroupId: calc.selectedGroupId,
+        currentSessionId: calc.currentSessionId,
+        status: 'active',
+        shareCode: calc.sharedSessionCode,
+        useSharedRpc,
+        upsertSharedSession: calc.sharedSessionCode
+          ? (code, payload) => repo.upsertSharedSession(code, payload)
+          : undefined,
+      });
+      if (!result.ok) return null;
+
+      const shareCode = result.shareCode?.trim();
+      if (!shareCode) return null;
+
+      calc.setSavedSession(
+        result.sessionId,
+        result.playerIds,
+        shareCode,
+        result.createdBy || calc.sessionCreatedBy || undefined
+      );
+      return { sessionId: result.sessionId, shareCode };
+    } catch (err) {
+      const message = err instanceof Error ? err.message : '';
+      if (message.includes('row-level security')) {
+        showToast('Upload blocked — check Pro status or session limit');
+      }
+      return null;
+    } finally {
+      setSavingSession(false);
+    }
+  };
+
+  const finalizeSession = async (): Promise<boolean> => {
+    if (!user?.id || calc.rows.length === 0) return false;
+    const isNewSession = calc.currentSessionId == null;
+    setSavingSession(true);
+    try {
+      const repo = getRepository(true);
+      const result = await savePayoutSession({
+        repo,
+        userId: user.id,
+        rows: calc.rows,
+        buyIn: calc.buyIn,
+        currency: calc.currency,
+        settlementMode: calc.settlementMode,
+        selectedGroupId: calc.selectedGroupId,
+        currentSessionId: calc.currentSessionId,
+        status: 'settled',
+        shareCode: calc.sharedSessionCode,
+        useSharedRpc,
+        upsertSharedSession: calc.sharedSessionCode
+          ? (code, payload) => repo.upsertSharedSession(code, payload)
+          : undefined,
+      });
+      if (!result.ok) {
+        showToast('Failed to save session');
+        return false;
+      }
+      calc.setSavedSession(
+        result.sessionId,
+        result.playerIds,
+        calc.sharedSessionCode ?? undefined,
+        result.createdBy || calc.sessionCreatedBy || undefined
+      );
+      showToast(isNewSession ? 'Session saved' : 'Session updated');
+      return true;
+    } catch {
+      showToast('Failed to save session');
+      return false;
+    } finally {
+      setSavingSession(false);
+    }
+  };
+
   const handleConfirmEndAndUpload = async () => {
-    const saved = await handleSaveSession();
+    const saved = await finalizeSession();
     setEndSessionConfirmOpen(false);
     setUploadFailedOnEnd(!saved);
     setEndSessionModalOpen(true);
   };
 
   const handleRetryUpload = async () => {
-    const saved = await handleSaveSession();
+    const saved = await finalizeSession();
     if (saved) {
       setUploadFailedOnEnd(false);
     }
@@ -147,82 +246,6 @@ export function PayoutTable() {
     }
   };
 
-  const handleSaveSession = async (): Promise<boolean> => {
-    if (!user?.id || calc.rows.length === 0) return false;
-    setSavingSession(true);
-    try {
-      const repo = getRepository(true);
-      const now = new Date().toISOString();
-      const isNewSession = calc.currentSessionId == null;
-      const sessionId = calc.currentSessionId ?? crypto.randomUUID();
-      const session = {
-        id: sessionId,
-        created_by: user.id,
-        group_id: calc.selectedGroupId,
-        session_date: new Date().toISOString().slice(0, 10),
-        currency: calc.currency,
-        default_buy_in: calc.buyIn,
-        settlement_mode: calc.settlementMode,
-        status: 'settled' as const,
-        share_code: '',
-        created_at: now,
-        updated_at: now,
-      };
-      await repo.saveGameSession(session);
-
-      const nameToUserId = new Map<string, string>();
-      if (calc.selectedGroupId) {
-        const members = await repo.getGroupMembersWithIds(calc.selectedGroupId);
-        for (const m of members) {
-          if (m.name?.trim()) nameToUserId.set(m.name.trim().toLowerCase(), m.user_id);
-        }
-      }
-
-      const playerIds: (string | undefined)[] = [];
-      for (const row of calc.rows) {
-        const name = row.name.trim();
-        const playerId = name ? (row.dbPlayerId ?? crypto.randomUUID()) : undefined;
-        playerIds.push(playerId);
-        if (playerId !== undefined) {
-          const buyIn = parseNum(row.buyIn);
-          const cashOut = parseNum(row.cashOut);
-          const userId = nameToUserId.get(name.toLowerCase()) ?? null;
-          await repo.saveGamePlayer({
-            id: playerId,
-            session_id: sessionId,
-            user_id: userId,
-            player_name: name,
-            buy_in: buyIn,
-            cash_out: cashOut,
-            net_result: cashOut - buyIn,
-            settled: row.paid ?? row.settled,
-            created_at: now,
-            updated_at: now,
-          });
-        }
-      }
-
-      if (!isNewSession) {
-        const keptIds = new Set(playerIds.filter((id): id is string => id != null));
-        const existing = await repo.getGamePlayers(sessionId);
-        for (const p of existing) {
-          if (!keptIds.has(p.id)) {
-            await repo.deleteGamePlayer(p.id, sessionId);
-          }
-        }
-      }
-
-      calc.setSavedSession(sessionId, playerIds);
-      showToast(isNewSession ? 'Session saved' : 'Session updated');
-      return true;
-    } catch {
-      showToast('Failed to save session');
-      return false;
-    } finally {
-      setSavingSession(false);
-    }
-  };
-
   const hasTableEdits =
     calc.rows.some((r) => r.name.trim().length > 0 || r.cashOut.trim().length > 0) ||
     calc.buyIn !== sessionStartBuyInRef.current;
@@ -272,9 +295,29 @@ export function PayoutTable() {
     );
   }
 
+  if (calc.shareCodeAuthRequired && !user) {
+    return (
+      <div className="wrap">
+        <h1 className="page-title">Payout Calculator</h1>
+        <div className="card" style={{ padding: '2rem', textAlign: 'center' }}>
+          <p className="muted-text">Sign in to open this shared session.</p>
+        </div>
+      </div>
+    );
+  }
+
   const handleShare = async () => {
+    if (!user) {
+      showToast('Sign in to share a session');
+      return;
+    }
     try {
-      const url = await calc.getShareUrl();
+      const saved = await saveActiveSession();
+      if (!saved?.shareCode) {
+        showToast('Failed to upload session for sharing');
+        return;
+      }
+      const url = `${getSiteOrigin()}${BASE_PATH}/?code=${encodeURIComponent(saved.shareCode)}`;
       if (navigator.clipboard?.write) {
         const html = `<a href="${url}">Poker Payout Share</a>`;
         const item = new ClipboardItem({

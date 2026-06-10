@@ -5,15 +5,18 @@ import { PayoutRowData } from '@/lib/types';
 import { parseNum, fmt, fmtInt } from '@/lib/calc/formatting';
 import { calculatePayouts } from '@/lib/calc/payout';
 import { computeGreedyTransactions } from '@/lib/calc/settlement';
-import { encodePayoutShareData, decodePayoutShareData } from '@/lib/sharing/payout-share';
+import { decodePayoutShareData } from '@/lib/sharing/payout-share';
 import { getLocalStorage, setLocalStorage, removeLocalStorage } from '@/lib/storage/local-storage';
+import { getRepository } from '@/lib/data/sync-repository';
 import {
   PAYOUT_STORAGE_KEY,
   MAX_ROWS,
   SELECTED_GROUP_CHANGED_EVENT,
   GROUP_MEMBERS_CHANGED_EVENT,
   SETTINGS_MODAL_CLOSED_EVENT,
+  OPEN_SIGN_IN_EVENT,
 } from '@/lib/constants';
+import type { DbGamePlayer, DbGameSession } from '@/lib/types';
 import { useSettings } from './useSettings';
 import { useGroups } from './useGroups';
 
@@ -26,11 +29,15 @@ export function usePayoutCalculator() {
   const [buyIn, setBuyInRaw] = useState('30');
   /** Session id after first save; null until then or after clear. Subsequent saves upsert this session. */
   const [currentSessionId, setCurrentSessionId] = useState<string | null>(null);
+  const [sharedSessionCode, setSharedSessionCode] = useState<string | null>(null);
+  const [sessionCreatedBy, setSessionCreatedBy] = useState<string | null>(null);
+  const [shareCodeAuthRequired, setShareCodeAuthRequired] = useState(false);
   const [selectedGroupIdInternal, setSelectedGroupIdInternal] = useState<string | null>(null);
   const [showSuspects, setShowSuspects] = useState(false);
   const [initialized, setInitialized] = useState(false);
 
   const nextId = useRef(0);
+  const pendingShareCodeRef = useRef<string | null>(null);
   const generateId = () => `prow-${nextId.current++}`;
 
   // Selected group: when set, its currency/default_buy_in/settlement_mode override profile settings
@@ -134,10 +141,64 @@ export function usePayoutCalculator() {
     [groups, settings.gameSettings.defaultBuyIn]
   );
 
+  const applyLoadedSharedSession = useCallback(
+    (session: DbGameSession, players: DbGamePlayer[], code: string) => {
+      setBuyInRaw(session.default_buy_in);
+      if (session.group_id) setSelectedGroupIdInternal(session.group_id);
+      setCurrentSessionId(session.id);
+      setSharedSessionCode(session.share_code || code);
+      setSessionCreatedBy(session.created_by);
+      setShareCodeAuthRequired(false);
+      setRows(
+        players.length > 0
+          ? players.map((p) => ({
+              id: generateId(),
+              name: p.player_name,
+              buyIn: String(p.buy_in),
+              cashOut: String(p.cash_out),
+              settled: p.settled,
+              paid: p.settled,
+              dbPlayerId: p.id,
+            }))
+          : [
+              { id: generateId(), name: '', buyIn: session.default_buy_in, cashOut: '', settled: false, paid: false },
+              { id: generateId(), name: '', buyIn: session.default_buy_in, cashOut: '', settled: false, paid: false },
+            ]
+      );
+      setInitialized(true);
+    },
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    []
+  );
+
+  const loadFromShareCode = useCallback(
+    async (code: string): Promise<boolean> => {
+      const repo = getRepository(true);
+      const loaded = await repo.getSessionByShareCode(code);
+      if (!loaded?.session) return false;
+      applyLoadedSharedSession(loaded.session, loaded.players, code);
+      return true;
+    },
+    [applyLoadedSharedSession]
+  );
+
   // Initialize from share URL or localStorage
   useEffect(() => {
     const init = async () => {
       const params = new URLSearchParams(window.location.search);
+      const shareCode = params.get('code');
+      if (shareCode) {
+        pendingShareCodeRef.current = shareCode;
+        if (!loggedIn) {
+          setShareCodeAuthRequired(true);
+          setInitialized(true);
+          window.dispatchEvent(new CustomEvent(OPEN_SIGN_IN_EVENT));
+          return;
+        }
+        const loaded = await loadFromShareCode(shareCode);
+        if (loaded) return;
+      }
+
       const shareData = params.get('s') || params.get('share');
 
       if (shareData) {
@@ -169,6 +230,8 @@ export function usePayoutCalculator() {
         if (saved.buyIn) setBuyInRaw(saved.buyIn);
         if (saved.selectedGroupId != null) setSelectedGroupIdInternal(saved.selectedGroupId);
         if (saved.currentSessionId != null) setCurrentSessionId(saved.currentSessionId);
+        if (saved.sharedSessionCode != null) setSharedSessionCode(saved.sharedSessionCode);
+        if (saved.sessionCreatedBy != null) setSessionCreatedBy(saved.sessionCreatedBy);
         setRows(
           saved.rows.map((r: Record<string, string | boolean | undefined>) => ({
             id: generateId(),
@@ -198,6 +261,14 @@ export function usePayoutCalculator() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  useEffect(() => {
+    if (!loggedIn) return;
+    const code =
+      pendingShareCodeRef.current ?? new URLSearchParams(window.location.search).get('code');
+    if (!code || currentSessionId) return;
+    void loadFromShareCode(code);
+  }, [loggedIn, loadFromShareCode, currentSessionId]);
+
   // Apply game settings on change (settlement mode, currency, default buy-in)
   const appliedSettingsRef = useRef(false);
   useEffect(() => {
@@ -224,8 +295,10 @@ export function usePayoutCalculator() {
       buyIn,
       selectedGroupId: selectedGroupId ?? undefined,
       currentSessionId: currentSessionId ?? undefined,
+      sharedSessionCode: sharedSessionCode ?? undefined,
+      sessionCreatedBy: sessionCreatedBy ?? undefined,
     });
-  }, [rows, buyIn, selectedGroupId, currentSessionId, initialized]);
+  }, [rows, buyIn, selectedGroupId, currentSessionId, sharedSessionCode, sessionCreatedBy, initialized]);
 
   // Methods
   const addRow = useCallback(
@@ -292,6 +365,10 @@ export function usePayoutCalculator() {
   const clearTable = useCallback(() => {
     nextId.current = 0;
     setCurrentSessionId(null);
+    setSharedSessionCode(null);
+    setSessionCreatedBy(null);
+    setShareCodeAuthRequired(false);
+    pendingShareCodeRef.current = null;
     setSelectedGroupIdInternal(null);
     const defaultBuyIn = settings.gameSettings.defaultBuyIn ?? '30';
     setRows([
@@ -304,15 +381,25 @@ export function usePayoutCalculator() {
   }, [settings.gameSettings.defaultBuyIn]);
 
   /** Call after save: first save passes new session id and new player ids; subsequent saves pass same session id and ids used for upsert. Empty-name rows get undefined. */
-  const setSavedSession = useCallback((sessionId: string, playerIds: (string | undefined)[]) => {
-    setCurrentSessionId(sessionId);
-    setRows((prev) =>
-      prev.map((row, i) => ({
-        ...row,
-        dbPlayerId: playerIds[i],
-      }))
-    );
-  }, []);
+  const setSavedSession = useCallback(
+    (
+      sessionId: string,
+      playerIds: (string | undefined)[],
+      shareCode?: string | null,
+      createdBy?: string | null
+    ) => {
+      setCurrentSessionId(sessionId);
+      if (shareCode) setSharedSessionCode(shareCode);
+      if (createdBy) setSessionCreatedBy(createdBy);
+      setRows((prev) =>
+        prev.map((row, i) => ({
+          ...row,
+          dbPlayerId: playerIds[i],
+        }))
+      );
+    },
+    []
+  );
 
   const toggleSuspects = useCallback(() => {
     setShowSuspects((prev) => !prev);
@@ -415,20 +502,6 @@ export function usePayoutCalculator() {
     [buyIn]
   );
 
-  const getShareUrl = useCallback(async () => {
-    const shareData = {
-      rows: rows.map((r) => ({
-        name: r.name,
-        in: r.buyIn,
-        out: r.cashOut,
-        settled: r.paid ?? r.settled,
-      })),
-      buyIn,
-    };
-    const encoded = await encodePayoutShareData(shareData);
-    return window.location.href.split('?')[0] + '?s=' + encoded;
-  }, [rows, buyIn]);
-
   const getPlayerNames = useCallback(() => {
     return rows.map((r) => r.name.trim()).filter(Boolean);
   }, [rows]);
@@ -438,6 +511,9 @@ export function usePayoutCalculator() {
     buyIn,
     setBuyIn: handleBuyInChange,
     currentSessionId,
+    sharedSessionCode,
+    sessionCreatedBy,
+    shareCodeAuthRequired,
     setSavedSession,
     selectedGroupId,
     selectedGroup,
@@ -458,7 +534,6 @@ export function usePayoutCalculator() {
     availableSuspects,
     addSuspectToRow,
     setRowsFromSelectedNames,
-    getShareUrl,
     getPlayerNames,
     settlementMode,
     currency,

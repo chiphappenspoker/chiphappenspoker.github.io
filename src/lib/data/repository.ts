@@ -1,5 +1,5 @@
 import { SettingsData, UsualSuspect } from '../types';
-import { DbGameSession, DbGamePlayer, DbGroup } from '../types';
+import { DbGameSession, DbGamePlayer, DbGroup, SharedSessionPayload } from '../types';
 
 export interface CreateGroupParams {
   name: string;
@@ -39,6 +39,8 @@ export interface Repository {
   getGamePlayers(sessionId: string): Promise<DbGamePlayer[]>;
   saveGamePlayer(player: DbGamePlayer): Promise<void>;
   deleteGamePlayer(playerId: string, sessionId: string): Promise<void>;
+  getSessionByShareCode(shareCode: string): Promise<{ session: DbGameSession; players: DbGamePlayer[] } | null>;
+  upsertSharedSession(shareCode: string, payload: SharedSessionPayload): Promise<string | null>;
   getGroups(): Promise<DbGroup[]>;
   getGroupByInviteCode(inviteCode: string): Promise<DbGroup | null>;
   getGroupMembers(groupId: string): Promise<UsualSuspect[]>;

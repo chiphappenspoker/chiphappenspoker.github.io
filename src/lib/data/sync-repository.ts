@@ -3,7 +3,7 @@ import { localRepository } from './local-repository';
 import { cloudRepository } from './cloud-repository';
 import { enqueue } from '../sync/sync-queue';
 import type { SettingsData } from '../types';
-import type { DbGameSession, DbGamePlayer, DbGroup } from '../types';
+import type { DbGameSession, DbGamePlayer, DbGroup, SharedSessionPayload } from '../types';
 import type { UsualSuspect } from '../types';
 import type { GroupMemberWithId, GameSessionsForUserFilters } from './repository';
 
@@ -52,18 +52,27 @@ const syncRepository: Repository = {
       });
       list = list.filter((session) => participantSessionIds.has(session.id));
     }
+    list = list.filter((s) => s.status !== 'active');
     list.sort((a, b) => (b.created_at > a.created_at ? 1 : b.created_at < a.created_at ? -1 : 0));
     return list;
   },
   async getGameSession(sessionId: string) {
     const local = await localRepository.getGameSession(sessionId);
-    if (local) return local;
-    return cloudRepository.getGameSession(sessionId);
+    if (local?.share_code?.trim()) return local;
+    const cloud = await cloudRepository.getGameSession(sessionId);
+    if (cloud) {
+      await localRepository.saveGameSession(cloud);
+      return cloud;
+    }
+    return local;
   },
   async saveGameSession(session: DbGameSession) {
     await localRepository.saveGameSession(session);
     await enqueue('game_sessions', 'upsert', session as unknown as Record<string, unknown>);
-    if (isOnline()) await cloudRepository.saveGameSession(session);
+    if (isOnline()) {
+      const saved = await cloudRepository.saveGameSession(session);
+      if (saved) await localRepository.saveGameSession(saved);
+    }
   },
   async getGamePlayers(sessionId: string) {
     const local = await localRepository.getGamePlayers(sessionId);
@@ -83,6 +92,19 @@ const syncRepository: Repository = {
 
   async getGroups(): Promise<DbGroup[]> {
     return cloudRepository.getGroups();
+  },
+  async getSessionByShareCode(shareCode: string) {
+    return cloudRepository.getSessionByShareCode(shareCode);
+  },
+  async upsertSharedSession(shareCode: string, payload: SharedSessionPayload) {
+    const sessionId = await cloudRepository.upsertSharedSession(shareCode, payload);
+    if (sessionId && isOnline()) {
+      const session = await cloudRepository.getGameSession(sessionId);
+      const players = await cloudRepository.getGamePlayers(sessionId);
+      if (session) await localRepository.saveGameSession(session);
+      for (const p of players) await localRepository.saveGamePlayer(p);
+    }
+    return sessionId;
   },
   async getGroupByInviteCode(inviteCode: string): Promise<DbGroup | null> {
     return cloudRepository.getGroupByInviteCode(inviteCode);
