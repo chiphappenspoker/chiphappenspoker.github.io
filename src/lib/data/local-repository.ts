@@ -58,9 +58,10 @@ export const localRepository: Repository = {
     if (!useDexie()) {
       const sessions = getLocalStorage<DbGameSession[]>(SESSIONS_STORAGE_KEY) ?? [];
       setLocalStorage(SESSIONS_STORAGE_KEY, [...sessions, session]);
-      return;
+      return session;
     }
     await db.sessions.put(session);
+    return session;
   },
   async getGamePlayers(sessionId) {
     if (!useDexie()) {

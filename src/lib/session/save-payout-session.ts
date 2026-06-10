@@ -3,7 +3,7 @@ import type { DbGamePlayer, DbGameSession, PayoutRowData, SharedSessionPayload }
 
 export type SavePayoutSessionParams = {
   repo: {
-    saveGameSession(session: DbGameSession): Promise<void>;
+    saveGameSession(session: DbGameSession): Promise<DbGameSession | null>;
     saveGamePlayer(player: DbGamePlayer): Promise<void>;
     getGameSession(sessionId: string): Promise<DbGameSession | null>;
     getGroupMembersWithIds(groupId: string): Promise<{ name: string; user_id: string }[]>;

@@ -35,7 +35,7 @@ export interface Repository {
   getGameSessions(): Promise<DbGameSession[]>;
   getGameSessionsForUser(filters?: GameSessionsForUserFilters): Promise<DbGameSession[]>;
   getGameSession(sessionId: string): Promise<DbGameSession | null>;
-  saveGameSession(session: DbGameSession): Promise<void>;
+  saveGameSession(session: DbGameSession): Promise<DbGameSession | null>;
   getGamePlayers(sessionId: string): Promise<DbGamePlayer[]>;
   saveGamePlayer(player: DbGamePlayer): Promise<void>;
   deleteGamePlayer(playerId: string, sessionId: string): Promise<void>;

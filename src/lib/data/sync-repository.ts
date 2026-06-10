@@ -66,13 +66,15 @@ const syncRepository: Repository = {
     }
     return local;
   },
-  async saveGameSession(session: DbGameSession) {
+  async saveGameSession(session: DbGameSession): Promise<DbGameSession | null> {
     await localRepository.saveGameSession(session);
     await enqueue('game_sessions', 'upsert', session as unknown as Record<string, unknown>);
     if (isOnline()) {
       const saved = await cloudRepository.saveGameSession(session);
       if (saved) await localRepository.saveGameSession(saved);
+      return saved;
     }
+    return session;
   },
   async getGamePlayers(sessionId: string) {
     const local = await localRepository.getGamePlayers(sessionId);
