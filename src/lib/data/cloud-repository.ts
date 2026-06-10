@@ -6,6 +6,7 @@ import {
   DbGamePlayer,
   DbGroup,
   UsualSuspect,
+  SharedSessionPayload,
 } from '../types';
 
 async function getCurrentUserId(): Promise<string | null> {
@@ -130,6 +131,7 @@ export const cloudRepository: Repository = {
       list = list.filter((s) => participatedSessionIds.has(s.id));
     }
 
+    list = list.filter((s) => s.status !== 'active');
     list.sort((a, b) => (b.created_at > a.created_at ? 1 : b.created_at < a.created_at ? -1 : 0));
     return list;
   },
@@ -144,23 +146,28 @@ export const cloudRepository: Repository = {
     return data as DbGameSession;
   },
 
-  async saveGameSession(session: DbGameSession) {
-    const { error } = await supabase.from('game_sessions').upsert(
-      {
-        id: session.id,
-        created_by: session.created_by,
-        group_id: session.group_id,
-        session_date: session.session_date,
-        currency: session.currency,
-        default_buy_in: session.default_buy_in,
-        settlement_mode: session.settlement_mode,
-        status: session.status,
-        share_code: session.share_code ?? '',
-        updated_at: new Date().toISOString(),
-      },
-      { onConflict: 'id' }
-    );
+  async saveGameSession(session: DbGameSession): Promise<DbGameSession | null> {
+    const row: Record<string, unknown> = {
+      id: session.id,
+      created_by: session.created_by,
+      group_id: session.group_id,
+      session_date: session.session_date,
+      currency: session.currency,
+      default_buy_in: session.default_buy_in,
+      settlement_mode: session.settlement_mode,
+      status: session.status,
+      updated_at: new Date().toISOString(),
+    };
+    if (session.created_at) row.created_at = session.created_at;
+    if (session.share_code?.trim()) row.share_code = session.share_code;
+
+    const { data, error } = await supabase
+      .from('game_sessions')
+      .upsert(row, { onConflict: 'id' })
+      .select('*')
+      .single();
     if (error) throw error;
+    return (data as DbGameSession) ?? null;
   },
 
   async getGamePlayers(sessionId: string) {
@@ -192,6 +199,36 @@ export const cloudRepository: Repository = {
   async deleteGamePlayer(playerId: string, _sessionId: string) {
     const { error } = await supabase.from('game_players').delete().eq('id', playerId);
     if (error) throw error;
+  },
+
+  async getSessionByShareCode(shareCode: string) {
+    const code = (shareCode ?? '').trim();
+    if (!code) return null;
+    const { data, error } = await supabase.rpc('get_session_by_share_code', {
+      p_share_code: code,
+    });
+    if (error || !data || typeof data !== 'object') return null;
+    const parsed = data as { session?: DbGameSession; players?: DbGamePlayer[] };
+    if (!parsed.session?.id) return null;
+    return {
+      session: parsed.session,
+      players: Array.isArray(parsed.players) ? parsed.players : [],
+    };
+  },
+
+  async upsertSharedSession(shareCode: string, payload: SharedSessionPayload) {
+    const code = (shareCode ?? '').trim();
+    if (!code) return null;
+    const { data, error } = await supabase.rpc('upsert_shared_session', {
+      p_share_code: code,
+      p_default_buy_in: payload.default_buy_in,
+      p_currency: payload.currency,
+      p_settlement_mode: payload.settlement_mode,
+      p_players: payload.players,
+      p_status: payload.status ?? null,
+    });
+    if (error) return null;
+    return typeof data === 'string' ? data : null;
   },
 
   async getGroupByInviteCode(inviteCode: string): Promise<DbGroup | null> {

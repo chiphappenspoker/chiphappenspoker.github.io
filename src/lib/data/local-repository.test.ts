@@ -8,7 +8,8 @@ function makeSession(
   id: string,
   groupId: string | null,
   sessionDate: string,
-  created_at: string
+  created_at: string,
+  status: string = 'settled'
 ): DbGameSession {
   return {
     id,
@@ -18,7 +19,7 @@ function makeSession(
     currency: 'EUR',
     default_buy_in: '30',
     settlement_mode: 'greedy',
-    status: 'settled',
+    status,
     share_code: '',
     created_at,
     updated_at: created_at,
@@ -91,6 +92,18 @@ describe('localRepository', () => {
       setLocalStorage(SESSIONS_STORAGE_KEY, sessions);
       const result = await localRepository.getGameSessionsForUser();
       expect(result).toHaveLength(1);
+    });
+
+    it('excludes active sessions from getGameSessionsForUser', async () => {
+      const sessions: DbGameSession[] = [
+        makeSession('active-1', null, '2026-06-10', '2026-06-10T10:00:00Z', 'active'),
+        makeSession('settled-1', null, '2026-06-09', '2026-06-09T10:00:00Z', 'settled'),
+      ];
+      setLocalStorage(SESSIONS_STORAGE_KEY, sessions);
+
+      const result = await localRepository.getGameSessionsForUser();
+
+      expect(result.map((s) => s.id)).toEqual(['settled-1']);
     });
 
     it('applies participantUserId filter from game_players rows', async () => {

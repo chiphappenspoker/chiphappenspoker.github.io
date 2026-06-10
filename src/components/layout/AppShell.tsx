@@ -8,6 +8,7 @@ import { SignInModal } from './SignInModal';
 import { SelectGroupModal } from '../payout/SelectGroupModal';
 import { useSettings } from '@/hooks/useSettings';
 import { useSelectGroupModal } from '@/hooks/useSelectGroupModal';
+import { OPEN_SIGN_IN_EVENT } from '@/lib/constants';
 import { IconLogOut, IconUser } from '@/components/ui/MenuIcons';
 
 const PROFILE_ONBOARDING_KEY = 'chiphappens:profile_onboarding';
@@ -64,6 +65,12 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       /* ignore localStorage errors */
     }
   }, [user?.id]);
+
+  useEffect(() => {
+    const handler = () => setSignInOpen(true);
+    window.addEventListener(OPEN_SIGN_IN_EVENT, handler);
+    return () => window.removeEventListener(OPEN_SIGN_IN_EVENT, handler);
+  }, []);
 
   // Close account menu on outside click
   useEffect(() => {

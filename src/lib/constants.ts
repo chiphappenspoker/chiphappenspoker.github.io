@@ -6,6 +6,8 @@ export const SELECTED_GROUP_CHANGED_EVENT = 'chiphappens:selectedGroupChanged';
 export const GROUP_MEMBERS_CHANGED_EVENT = 'chiphappens:groupMembersChanged';
 /** Dispatched when settings modal closes; calculators refetch selected group members so Usual Suspects stay in sync. */
 export const SETTINGS_MODAL_CLOSED_EVENT = 'chiphappens:settingsModalClosed';
+/** Dispatched to open the global sign-in modal (e.g. shared session link while logged out). */
+export const OPEN_SIGN_IN_EVENT = 'chiphappens:openSignIn';
 export const SIDEPOT_STORAGE_KEY = 'poker-sidepot:v1';
 export const SETTINGS_STORAGE_KEY = 'poker-calc-settings';
 export const SESSIONS_STORAGE_KEY = 'poker-sessions:v1';
