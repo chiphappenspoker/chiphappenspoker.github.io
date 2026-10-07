@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { getGroupLeaderboard } from './stats';
+import { getGroupLeaderboard, getCumulativePnl } from './stats';
 
 const mockRpc = vi.fn();
 vi.mock('../supabase/client', () => ({
@@ -78,5 +78,53 @@ describe('getGroupLeaderboard', () => {
     await expect(getGroupLeaderboard('g1')).rejects.toMatchObject({
       message: 'RLS violation',
     });
+  });
+});
+
+describe('getCumulativePnl', () => {
+  beforeEach(() => {
+    mockRpc.mockReset();
+  });
+
+  it('calls get_cumulative_pnl with user, group, and date params', async () => {
+    mockRpc.mockResolvedValue({ data: [], error: null });
+    await getCumulativePnl('user-1', 'group-1', '2026-01-01', '2026-03-01');
+    expect(mockRpc).toHaveBeenCalledWith('get_cumulative_pnl', {
+      p_user_id: 'user-1',
+      p_group_id: 'group-1',
+      p_from_date: '2026-01-01',
+      p_to_date: '2026-03-01',
+    });
+  });
+
+  it('passes null for missing group and dates', async () => {
+    mockRpc.mockResolvedValue({ data: [], error: null });
+    await getCumulativePnl('user-1');
+    expect(mockRpc).toHaveBeenCalledWith('get_cumulative_pnl', {
+      p_user_id: 'user-1',
+      p_group_id: null,
+      p_from_date: null,
+      p_to_date: null,
+    });
+  });
+
+  it('maps RPC rows to CumulativePnlPoint and coerces numbers', async () => {
+    mockRpc.mockResolvedValue({
+      data: [
+        { session_date: '2026-01-10', cumulative_profit: '10' },
+        { session_date: '2026-01-20', cumulative_profit: 25.5 },
+      ],
+      error: null,
+    });
+    const points = await getCumulativePnl('user-1', null);
+    expect(points).toEqual([
+      { date: '2026-01-10', cumulativeProfit: 10 },
+      { date: '2026-01-20', cumulativeProfit: 25.5 },
+    ]);
+  });
+
+  it('returns empty array on RPC error', async () => {
+    mockRpc.mockResolvedValue({ data: null, error: { message: 'not pro' } });
+    await expect(getCumulativePnl('user-1')).resolves.toEqual([]);
   });
 });
