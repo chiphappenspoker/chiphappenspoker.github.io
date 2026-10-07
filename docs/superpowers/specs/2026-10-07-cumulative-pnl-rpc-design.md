@@ -1,7 +1,7 @@
 # Cumulative Profit Chart Performance — Design Spec
 
 **Date:** 2026-10-07  
-**Status:** Draft (awaiting user review)  
+**Status:** Approved — implemented on `perf/cumulative-pnl-rpc`  
 **Branch:** `perf/cumulative-pnl-rpc`  
 **Approach:** Supabase RPC (one round-trip), matching `get_player_stats`
 
