@@ -1,6 +1,67 @@
 import { supabase } from '../supabase/client';
 import type { LeaderboardRow, PlayerStats } from '../types';
 
+export type CombinedPlayerStats = {
+  total_sessions: number;
+  total_profit: number;
+  biggest_win: number;
+  biggest_loss: number;
+  win_count: number;
+  loss_count: number;
+  avg_profit: number;
+  avg_win: number;
+  avg_loss: number;
+  last_played: string | null;
+};
+
+/** Combine multiple PlayerStats rows (e.g. one per group) into one view. */
+export function combinePlayerStats(rows: PlayerStats[]): CombinedPlayerStats {
+  if (rows.length === 0) {
+    return {
+      total_sessions: 0,
+      total_profit: 0,
+      biggest_win: 0,
+      biggest_loss: 0,
+      win_count: 0,
+      loss_count: 0,
+      avg_profit: 0,
+      avg_win: 0,
+      avg_loss: 0,
+      last_played: null,
+    };
+  }
+  const total_sessions = rows.reduce((s, r) => s + r.total_sessions, 0);
+  const total_profit = rows.reduce((s, r) => s + r.total_profit, 0);
+  const biggest_win = Math.max(0, ...rows.map((r) => r.biggest_win));
+  const biggest_loss = Math.min(0, ...rows.map((r) => r.biggest_loss));
+  const win_count = rows.reduce((s, r) => s + r.win_count, 0);
+  const loss_count = rows.reduce((s, r) => s + r.loss_count, 0);
+  const lastPlayedStrs = rows.map((r) => r.last_played).filter(Boolean) as string[];
+  const last_played =
+    lastPlayedStrs.length > 0 ? lastPlayedStrs.sort().reverse()[0]! : null;
+  const avg_profit = total_sessions > 0 ? total_profit / total_sessions : 0;
+  const avg_win =
+    win_count > 0
+      ? rows.reduce((s, r) => s + r.avg_win * r.win_count, 0) / win_count
+      : 0;
+  const avg_loss =
+    loss_count > 0
+      ? rows.reduce((s, r) => s + r.avg_loss * r.loss_count, 0) / loss_count
+      : 0;
+  return {
+    total_sessions,
+    total_profit,
+    biggest_win,
+    biggest_loss,
+    win_count,
+    loss_count,
+    avg_profit,
+    avg_win,
+    avg_loss,
+    last_played,
+  };
+}
+
 export interface CumulativePnlPoint {
   date: string;
   cumulativeProfit: number;
@@ -75,6 +136,8 @@ export async function getPlayerStats(
     win_count: Number(r.win_count),
     loss_count: Number(r.loss_count),
     avg_profit: Number(r.avg_profit),
+    avg_win: Number((r as { avg_win?: number | string }).avg_win ?? 0),
+    avg_loss: Number((r as { avg_loss?: number | string }).avg_loss ?? 0),
     last_played: r.last_played ?? null,
   }));
 }

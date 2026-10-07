@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { getGroupLeaderboard, getCumulativePnl } from './stats';
+import { getGroupLeaderboard, getCumulativePnl, combinePlayerStats } from './stats';
+import type { PlayerStats } from '../types';
 
 const mockRpc = vi.fn();
 vi.mock('../supabase/client', () => ({
@@ -126,5 +127,89 @@ describe('getCumulativePnl', () => {
   it('returns empty array on RPC error', async () => {
     mockRpc.mockResolvedValue({ data: null, error: { message: 'not pro' } });
     await expect(getCumulativePnl('user-1')).resolves.toEqual([]);
+  });
+});
+
+function baseRow(overrides: Partial<PlayerStats> = {}): PlayerStats {
+  return {
+    user_id: 'u1',
+    group_id: 'g1',
+    total_sessions: 0,
+    total_profit: 0,
+    biggest_win: 0,
+    biggest_loss: 0,
+    win_count: 0,
+    loss_count: 0,
+    avg_profit: 0,
+    avg_win: 0,
+    avg_loss: 0,
+    last_played: null,
+    ...overrides,
+  };
+}
+
+describe('combinePlayerStats', () => {
+  it('returns zeros for empty rows', () => {
+    expect(combinePlayerStats([])).toEqual({
+      total_sessions: 0,
+      total_profit: 0,
+      biggest_win: 0,
+      biggest_loss: 0,
+      win_count: 0,
+      loss_count: 0,
+      avg_profit: 0,
+      avg_win: 0,
+      avg_loss: 0,
+      last_played: null,
+    });
+  });
+
+  it('computes weighted avg_win and avg_loss across groups', () => {
+    const combined = combinePlayerStats([
+      baseRow({
+        group_id: 'g1',
+        total_sessions: 3,
+        total_profit: 30,
+        win_count: 2,
+        loss_count: 1,
+        avg_win: 20,
+        avg_loss: -10,
+        biggest_win: 25,
+        biggest_loss: -10,
+        last_played: '2026-02-01',
+      }),
+      baseRow({
+        group_id: 'g2',
+        total_sessions: 2,
+        total_profit: 10,
+        win_count: 1,
+        loss_count: 1,
+        avg_win: 40,
+        avg_loss: -30,
+        biggest_win: 40,
+        biggest_loss: -30,
+        last_played: '2026-03-01',
+      }),
+    ]);
+    // avg_win = (20*2 + 40*1) / (2+1) = 80/3
+    expect(combined.avg_win).toBeCloseTo(80 / 3);
+    // avg_loss = (-10*1 + -30*1) / (1+1) = -20
+    expect(combined.avg_loss).toBe(-20);
+    expect(combined.win_count).toBe(3);
+    expect(combined.loss_count).toBe(2);
+    expect(combined.total_sessions).toBe(5);
+    expect(combined.total_profit).toBe(40);
+    expect(combined.biggest_win).toBe(40);
+    expect(combined.biggest_loss).toBe(-30);
+    expect(combined.avg_profit).toBe(8);
+    expect(combined.last_played).toBe('2026-03-01');
+  });
+
+  it('returns 0 avg_win / avg_loss when counts are zero', () => {
+    const combined = combinePlayerStats([
+      baseRow({ total_sessions: 1, total_profit: 0, avg_win: 99, avg_loss: -99 }),
+    ]);
+    expect(combined.avg_win).toBe(0);
+    expect(combined.avg_loss).toBe(0);
   });
 });
