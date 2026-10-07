@@ -1,7 +1,7 @@
 # Average Win / Average Loss Stats — Design Spec
 
 **Date:** 2026-10-07  
-**Status:** Draft (awaiting user review)  
+**Status:** Approved — implemented on `feat/win-loss-size`  
 **Branch:** `feat/win-loss-size`  
 **Approach:** Extend `get_player_stats` RPC with `avg_win` / `avg_loss`
 
