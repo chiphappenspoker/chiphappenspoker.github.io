@@ -8,8 +8,9 @@ export interface CumulativePnlPoint {
 
 /**
  * Fetches cumulative PnL over time for a user.
- * Sessions: created_by = userId or group member; optional group/date filters.
+ * Uses get_cumulative_pnl RPC (same session set / filters as get_player_stats).
  * Returns points { date, cumulativeProfit } sorted by date ascending.
+ * On error returns empty array.
  */
 export async function getCumulativePnl(
   userId: string,
@@ -17,60 +18,21 @@ export async function getCumulativePnl(
   fromDate?: string,
   toDate?: string
 ): Promise<CumulativePnlPoint[]> {
-  const byId = new Map<string, { session_date: string; group_id: string | null }>();
-
-  const { data: createdData, error: createdError } = await supabase
-    .from('game_sessions')
-    .select('id, session_date, group_id')
-    .eq('created_by', userId);
-  if (!createdError && createdData?.length) {
-    for (const row of createdData as { id: string; session_date: string; group_id: string | null }[]) {
-      byId.set(row.id, { session_date: row.session_date, group_id: row.group_id });
-    }
-  }
-
-  const { data: memberRows } = await supabase
-    .from('group_members')
-    .select('group_id')
-    .eq('user_id', userId);
-  const memberGroupIds = (memberRows ?? []).map((r) => r.group_id).filter(Boolean) as string[];
-  if (memberGroupIds.length > 0) {
-    const { data: groupSessions, error: groupError } = await supabase
-      .from('game_sessions')
-      .select('id, session_date, group_id')
-      .in('group_id', memberGroupIds);
-    if (!groupError && groupSessions?.length) {
-      for (const row of groupSessions as { id: string; session_date: string; group_id: string | null }[]) {
-        if (!byId.has(row.id)) byId.set(row.id, { session_date: row.session_date, group_id: row.group_id });
-      }
-    }
-  }
-
-  let list = Array.from(byId.entries()).map(([id, { session_date, group_id }]) => ({ id, session_date, group_id }));
-
-  if (groupId != null && groupId !== '') {
-    list = list.filter((s) => s.group_id === groupId);
-  }
-  if (fromDate) list = list.filter((s) => s.session_date >= fromDate);
-  if (toDate) list = list.filter((s) => s.session_date <= toDate);
-
-  list.sort((a, b) => (a.session_date < b.session_date ? -1 : a.session_date > b.session_date ? 1 : 0));
-
-  const result: CumulativePnlPoint[] = [];
-  let cumulative = 0;
-
-  for (const session of list) {
-    const { data: players } = await supabase
-      .from('game_players')
-      .select('net_result')
-      .eq('session_id', session.id)
-      .eq('user_id', userId);
-    const sessionProfit = (players ?? []).reduce((sum, p) => sum + Number((p as { net_result: number }).net_result), 0);
-    cumulative += sessionProfit;
-    result.push({ date: session.session_date, cumulativeProfit: cumulative });
-  }
-
-  return result;
+  const { data, error } = await supabase.rpc('get_cumulative_pnl', {
+    p_user_id: userId,
+    p_group_id: groupId ?? null,
+    p_from_date: fromDate ?? null,
+    p_to_date: toDate ?? null,
+  });
+  if (error) return [];
+  const rows = (data ?? []) as Array<{
+    session_date: string;
+    cumulative_profit: number | string;
+  }>;
+  return rows.map((r) => ({
+    date: r.session_date,
+    cumulativeProfit: Number(r.cumulative_profit),
+  }));
 }
 
 /**
