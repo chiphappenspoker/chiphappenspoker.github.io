@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { UsualSuspect } from '@/lib/types';
+import { compareByFirstName } from '@/lib/names';
 import { useSettings } from '@/hooks/useSettings';
 
 export function UsualSuspectsPanel() {
@@ -10,7 +11,7 @@ export function UsualSuspectsPanel() {
 
   useEffect(() => {
     const sorted = [...settings.usualSuspects].sort((a, b) =>
-      a.name.localeCompare(b.name, undefined, { sensitivity: 'base' })
+      compareByFirstName(a.name, b.name)
     );
     setSuspects(sorted.length > 0 ? sorted : [{ name: '', revtag: '' }]);
   }, [settings.usualSuspects]);
@@ -49,7 +50,7 @@ export function UsualSuspectsPanel() {
         revtag: normalizeRevtag(s.revtag),
       }))
       .filter((s) => s.name)
-      .sort((a, b) => a.name.localeCompare(b.name, undefined, { sensitivity: 'base' }));
+      .sort((a, b) => compareByFirstName(a.name, b.name));
     const ok = await updateUsualSuspects(cleaned);
     if (ok) closeSettingsModal();
   };

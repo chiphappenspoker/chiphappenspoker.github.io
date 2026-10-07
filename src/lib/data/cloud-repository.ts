@@ -1,5 +1,6 @@
 import { Repository, CreateGroupParams, UpdateGroupParams, GroupMemberWithId, GameSessionsForUserFilters } from './repository';
 import { supabase } from '../supabase/client';
+import { compareByFirstName } from '../names';
 import {
   SettingsData,
   DbGameSession,
@@ -297,11 +298,13 @@ export const cloudRepository: Repository = {
           'If some members are missing in the UI, ensure migration 20260301000001_profiles_select_group_members.sql is applied on your Supabase project (run: npm run supabase:db:push).'
       );
     }
-    return (profiles ?? []).map((p) => ({
-      name: p.display_name ?? '',
-      revtag: p.revtag ?? '',
-      user_id: p.id,
-    }));
+    return (profiles ?? [])
+      .map((p) => ({
+        name: p.display_name ?? '',
+        revtag: p.revtag ?? '',
+        user_id: p.id,
+      }))
+      .sort((a, b) => compareByFirstName(a.name, b.name));
   },
 
   async createGroup(params: CreateGroupParams): Promise<DbGroup> {

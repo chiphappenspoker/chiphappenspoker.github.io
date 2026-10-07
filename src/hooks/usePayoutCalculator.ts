@@ -16,6 +16,7 @@ import {
   OPEN_SIGN_IN_EVENT,
 } from '@/lib/constants';
 import type { DbGamePlayer, DbGameSession } from '@/lib/types';
+import { compareByFirstName } from '@/lib/names';
 import { useSettings } from './useSettings';
 import { useGroups } from './useGroups';
 
@@ -74,7 +75,9 @@ export function usePayoutCalculator() {
     const raw = selectedGroupId && loggedIn
       ? groupMembers.map((s) => s.name)
       : settings.usualSuspects.map((s) => s.name);
-    return raw.filter((name) => name.trim().length > 0);
+    return raw
+      .filter((name) => name.trim().length > 0)
+      .sort(compareByFirstName);
   }, [selectedGroupId, loggedIn, groupMembers, settings.usualSuspects]);
 
   const availableSuspects = useMemo(() => {

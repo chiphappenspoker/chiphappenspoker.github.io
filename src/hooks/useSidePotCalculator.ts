@@ -12,6 +12,7 @@ import {
   GROUP_MEMBERS_CHANGED_EVENT,
   SETTINGS_MODAL_CLOSED_EVENT,
 } from '@/lib/constants';
+import { compareByFirstName } from '@/lib/names';
 import { useSettings } from './useSettings';
 import { useGroups } from './useGroups';
 
@@ -130,7 +131,9 @@ export function useSidePotCalculator() {
       payoutSelectedGroupId && loggedIn
         ? groupMembers.map((s) => s.name)
         : settings.usualSuspects.map((s) => s.name);
-    return raw.filter((name) => name.trim().length > 0);
+    return raw
+      .filter((name) => name.trim().length > 0)
+      .sort(compareByFirstName);
   }, [payoutSelectedGroupId, loggedIn, groupMembers, settings.usualSuspects]);
 
   const availableSuspects = useMemo(() => {

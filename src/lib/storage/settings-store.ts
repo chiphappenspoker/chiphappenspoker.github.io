@@ -1,5 +1,6 @@
 import { SettingsData, UsualSuspect } from '../types';
 import { SETTINGS_STORAGE_KEY, KNOWN_CURRENCIES, VALID_SETTLEMENT_MODES } from '../constants';
+import { compareByFirstName } from '../names';
 
 /* ── localStorage ── */
 
@@ -48,7 +49,8 @@ export function normalizeSettingsData(
 
   const usualSuspects = (list as unknown[])
     .map(normalizeSuspect)
-    .filter((item): item is UsualSuspect => item !== null);
+    .filter((item): item is UsualSuspect => item !== null)
+    .sort((a, b) => compareByFirstName(a.name, b.name));
 
   const rawCurrency = (data?.gameSettings?.currency ?? 'EUR').trim();
   const currency = KNOWN_CURRENCIES.includes(rawCurrency)
