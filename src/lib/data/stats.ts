@@ -124,6 +124,8 @@ export async function getPlayerStats(
     win_count: number | string;
     loss_count: number | string;
     avg_profit: number | string;
+    avg_win: number | string;
+    avg_loss: number | string;
     last_played: string | null;
   }>;
   return rows.map((r) => ({
@@ -136,8 +138,8 @@ export async function getPlayerStats(
     win_count: Number(r.win_count),
     loss_count: Number(r.loss_count),
     avg_profit: Number(r.avg_profit),
-    avg_win: Number((r as { avg_win?: number | string }).avg_win ?? 0),
-    avg_loss: Number((r as { avg_loss?: number | string }).avg_loss ?? 0),
+    avg_win: Number(r.avg_win),
+    avg_loss: Number(r.avg_loss),
     last_played: r.last_played ?? null,
   }));
 }

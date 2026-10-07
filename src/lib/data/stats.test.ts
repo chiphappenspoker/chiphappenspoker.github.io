@@ -1,5 +1,10 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { getGroupLeaderboard, getCumulativePnl, combinePlayerStats } from './stats';
+import {
+  getGroupLeaderboard,
+  getCumulativePnl,
+  combinePlayerStats,
+  getPlayerStats,
+} from './stats';
 import type { PlayerStats } from '../types';
 
 const mockRpc = vi.fn();
@@ -127,6 +132,53 @@ describe('getCumulativePnl', () => {
   it('returns empty array on RPC error', async () => {
     mockRpc.mockResolvedValue({ data: null, error: { message: 'not pro' } });
     await expect(getCumulativePnl('user-1')).resolves.toEqual([]);
+  });
+});
+
+describe('getPlayerStats', () => {
+  beforeEach(() => {
+    mockRpc.mockReset();
+  });
+
+  it('maps avg_win and avg_loss from get_player_stats', async () => {
+    mockRpc.mockResolvedValue({
+      data: [
+        {
+          user_id: 'u1',
+          group_id: 'g1',
+          total_sessions: 4,
+          total_profit: 50,
+          biggest_win: 30,
+          biggest_loss: -20,
+          win_count: 2,
+          loss_count: 2,
+          avg_profit: 12.5,
+          avg_win: '25',
+          avg_loss: -15,
+          last_played: '2026-04-01',
+        },
+      ],
+      error: null,
+    });
+    const rows = await getPlayerStats('u1', 'g1');
+    expect(mockRpc).toHaveBeenCalledWith('get_player_stats', {
+      p_user_id: 'u1',
+      p_group_id: 'g1',
+      p_from_date: null,
+      p_to_date: null,
+    });
+    expect(rows[0]).toMatchObject({
+      avg_win: 25,
+      avg_loss: -15,
+      biggest_win: 30,
+      biggest_loss: -20,
+    });
+  });
+
+  it('returns empty array on RPC error', async () => {
+    mockRpc.mockResolvedValue({ data: null, error: { message: 'fail' } });
+    const rows = await getPlayerStats('u1');
+    expect(rows).toEqual([]);
   });
 });
 
