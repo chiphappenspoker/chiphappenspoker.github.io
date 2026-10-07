@@ -199,8 +199,16 @@ export default function StatsPage() {
                   <span>{fmt(combined.biggest_win)}</span>
                 </div>
                 <div className="flex justify-between settings-field">
+                  <span className="muted-text">Average win</span>
+                  <span>{fmt(combined.avg_win)}</span>
+                </div>
+                <div className="flex justify-between settings-field">
                   <span className="muted-text">Biggest loss</span>
                   <span>{fmt(combined.biggest_loss)}</span>
+                </div>
+                <div className="flex justify-between settings-field">
+                  <span className="muted-text">Average loss</span>
+                  <span>{fmt(combined.avg_loss)}</span>
                 </div>
                 <div className="flex justify-between settings-field">
                   <span className="muted-text">Wins / Losses</span>
