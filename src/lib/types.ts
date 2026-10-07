@@ -94,6 +94,8 @@ export interface PlayerStats {
   win_count: number;
   loss_count: number;
   avg_profit: number;
+  avg_win: number;
+  avg_loss: number;
   last_played: string | null;
 }
 
