@@ -3,7 +3,7 @@ import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import LeaderboardPage from './page';
 import { useAuth } from '@/lib/auth/AuthProvider';
 import { useGroups } from '@/hooks/useGroups';
-import { getGroupLeaderboard } from '@/lib/data/stats';
+import { getGroupLeaderboard, getGroupSessionDates } from '@/lib/data/stats';
 
 vi.mock('next/link', () => ({
   default: ({ children, href }: { children: React.ReactNode; href: string }) => (
@@ -12,7 +12,10 @@ vi.mock('next/link', () => ({
 }));
 vi.mock('@/lib/auth/AuthProvider', () => ({ useAuth: vi.fn() }));
 vi.mock('@/hooks/useGroups', () => ({ useGroups: vi.fn() }));
-vi.mock('@/lib/data/stats', () => ({ getGroupLeaderboard: vi.fn() }));
+vi.mock('@/lib/data/stats', () => ({
+  getGroupLeaderboard: vi.fn(),
+  getGroupSessionDates: vi.fn(),
+}));
 vi.mock('@/lib/entitlements/EntitlementsProvider', () => ({
   useEntitlements: () => ({
     tier: 'pro' as const,
@@ -53,6 +56,7 @@ describe('LeaderboardPage', () => {
     });
     vi.mocked(useGroups).mockReturnValue({ groups: [], loading: false, reload: vi.fn() });
     vi.mocked(getGroupLeaderboard).mockResolvedValue([]);
+    vi.mocked(getGroupSessionDates).mockResolvedValue([]);
   });
 
   it('displays sign-in message when user is null', () => {
@@ -104,6 +108,7 @@ describe('LeaderboardPage', () => {
         max_session_profit: 50,
       },
     ]);
+    vi.mocked(getGroupSessionDates).mockResolvedValue(['2026-03-09', '2026-03-10']);
     render(<LeaderboardPage />);
     const groupSelect = screen.getByRole('combobox', { name: /group/i });
     fireEvent.change(groupSelect, { target: { value: 'g1' } });
@@ -111,6 +116,8 @@ describe('LeaderboardPage', () => {
       expect(screen.getByText(/alice/i)).toBeInTheDocument();
     });
     expect(screen.getByRole('table')).toBeInTheDocument();
+    expect(screen.getByText(/current streak/i)).toBeInTheDocument();
+    expect(screen.getByText(/longest streak/i)).toBeInTheDocument();
   });
 
   it('generates leaderboard for an existing group: calls getGroupLeaderboard with group id and displays rows', async () => {

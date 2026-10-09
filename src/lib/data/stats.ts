@@ -145,6 +145,28 @@ export async function getPlayerStats(
 }
 
 /**
+ * Distinct session dates for a group (any member played), optional date range.
+ * Reads game_sessions via RLS (group members can select). Used for streak banner.
+ * On error returns empty array.
+ */
+export async function getGroupSessionDates(
+  groupId: string,
+  fromDate?: string,
+  toDate?: string
+): Promise<string[]> {
+  let query = supabase
+    .from('game_sessions')
+    .select('session_date')
+    .eq('group_id', groupId);
+  if (fromDate) query = query.gte('session_date', fromDate);
+  if (toDate) query = query.lte('session_date', toDate);
+  const { data, error } = await query;
+  if (error) return [];
+  const rows = (data ?? []) as Array<{ session_date: string }>;
+  return [...new Set(rows.map((r) => r.session_date).filter(Boolean))].sort();
+}
+
+/**
  * Fetches leaderboard rows for a group, optionally filtered by date range.
  * Requires the current user to be a member of the group (RLS on game_sessions).
  */
