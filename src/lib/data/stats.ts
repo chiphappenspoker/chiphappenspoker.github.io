@@ -146,7 +146,7 @@ export async function getPlayerStats(
 
 /**
  * Distinct session dates for a group (any member played), optional date range.
- * Reads game_sessions via RLS (group members can select). Used for streak banner.
+ * Uses get_group_session_dates RPC (same Pro + membership gate as leaderboard).
  * On error returns empty array.
  */
 export async function getGroupSessionDates(
@@ -154,16 +154,14 @@ export async function getGroupSessionDates(
   fromDate?: string,
   toDate?: string
 ): Promise<string[]> {
-  let query = supabase
-    .from('game_sessions')
-    .select('session_date')
-    .eq('group_id', groupId);
-  if (fromDate) query = query.gte('session_date', fromDate);
-  if (toDate) query = query.lte('session_date', toDate);
-  const { data, error } = await query;
+  const { data, error } = await supabase.rpc('get_group_session_dates', {
+    p_from_date: fromDate || null,
+    p_group_id: groupId,
+    p_to_date: toDate || null,
+  });
   if (error) return [];
   const rows = (data ?? []) as Array<{ session_date: string }>;
-  return [...new Set(rows.map((r) => r.session_date).filter(Boolean))].sort();
+  return rows.map((r) => r.session_date);
 }
 
 /**

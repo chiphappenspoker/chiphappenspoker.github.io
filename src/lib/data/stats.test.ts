@@ -9,25 +9,11 @@ import {
 import type { PlayerStats } from '../types';
 
 const mockRpc = vi.fn();
-const mockFrom = vi.fn();
 vi.mock('../supabase/client', () => ({
   supabase: {
     rpc: (...args: unknown[]) => mockRpc(...args),
-    from: (...args: unknown[]) => mockFrom(...args),
   },
 }));
-
-function mockSessionDatesQuery(result: { data: unknown; error: unknown }) {
-  const builder: Record<string, unknown> = {};
-  builder.select = vi.fn(() => builder);
-  builder.eq = vi.fn(() => builder);
-  builder.gte = vi.fn(() => builder);
-  builder.lte = vi.fn(() => builder);
-  builder.then = (onFulfilled: (v: unknown) => unknown, onRejected?: (e: unknown) => unknown) =>
-    Promise.resolve(result).then(onFulfilled, onRejected);
-  mockFrom.mockReturnValue(builder);
-  return builder;
-}
 
 describe('getGroupLeaderboard', () => {
   beforeEach(() => {
@@ -104,40 +90,35 @@ describe('getGroupLeaderboard', () => {
 
 describe('getGroupSessionDates', () => {
   beforeEach(() => {
-    mockFrom.mockReset();
+    mockRpc.mockReset();
   });
 
-  it('queries game_sessions for the group and returns distinct sorted dates', async () => {
-    const builder = mockSessionDatesQuery({
-      data: [
-        { session_date: '2026-03-09' },
-        { session_date: '2026-03-01' },
-        { session_date: '2026-03-09' },
-      ],
-      error: null,
+  it('calls get_group_session_dates with alphabetical params', async () => {
+    mockRpc.mockResolvedValue({ data: [], error: null });
+    await getGroupSessionDates('group-uuid-123');
+    expect(mockRpc).toHaveBeenCalledWith('get_group_session_dates', {
+      p_from_date: null,
+      p_group_id: 'group-uuid-123',
+      p_to_date: null,
     });
-    const dates = await getGroupSessionDates('group-uuid-123');
-    expect(mockFrom).toHaveBeenCalledWith('game_sessions');
-    expect(builder.select).toHaveBeenCalledWith('session_date');
-    expect(builder.eq).toHaveBeenCalledWith('group_id', 'group-uuid-123');
-    expect(builder.gte).not.toHaveBeenCalled();
-    expect(builder.lte).not.toHaveBeenCalled();
-    expect(dates).toEqual(['2026-03-01', '2026-03-09']);
   });
 
-  it('applies from/to date filters when provided', async () => {
-    const builder = mockSessionDatesQuery({
+  it('passes date strings when provided and maps session_date rows', async () => {
+    mockRpc.mockResolvedValue({
       data: [{ session_date: '2026-03-01' }, { session_date: '2026-03-09' }],
       error: null,
     });
     const dates = await getGroupSessionDates('g1', '2026-01-01', '2026-03-10');
-    expect(builder.gte).toHaveBeenCalledWith('session_date', '2026-01-01');
-    expect(builder.lte).toHaveBeenCalledWith('session_date', '2026-03-10');
+    expect(mockRpc).toHaveBeenCalledWith('get_group_session_dates', {
+      p_from_date: '2026-01-01',
+      p_group_id: 'g1',
+      p_to_date: '2026-03-10',
+    });
     expect(dates).toEqual(['2026-03-01', '2026-03-09']);
   });
 
-  it('returns empty array on query error', async () => {
-    mockSessionDatesQuery({ data: null, error: { message: 'fail' } });
+  it('returns empty array on RPC error', async () => {
+    mockRpc.mockResolvedValue({ data: null, error: { message: 'fail' } });
     await expect(getGroupSessionDates('g1')).resolves.toEqual([]);
   });
 });
