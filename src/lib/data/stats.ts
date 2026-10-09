@@ -145,6 +145,26 @@ export async function getPlayerStats(
 }
 
 /**
+ * Distinct session dates for a group (any member played), optional date range.
+ * Uses get_group_session_dates RPC (same Pro + membership gate as leaderboard).
+ * On error returns empty array.
+ */
+export async function getGroupSessionDates(
+  groupId: string,
+  fromDate?: string,
+  toDate?: string
+): Promise<string[]> {
+  const { data, error } = await supabase.rpc('get_group_session_dates', {
+    p_from_date: fromDate || null,
+    p_group_id: groupId,
+    p_to_date: toDate || null,
+  });
+  if (error) return [];
+  const rows = (data ?? []) as Array<{ session_date: string }>;
+  return rows.map((r) => r.session_date);
+}
+
+/**
  * Fetches leaderboard rows for a group, optionally filtered by date range.
  * Requires the current user to be a member of the group (RLS on game_sessions).
  */

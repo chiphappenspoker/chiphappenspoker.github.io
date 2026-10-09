@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import {
   getGroupLeaderboard,
+  getGroupSessionDates,
   getCumulativePnl,
   combinePlayerStats,
   getPlayerStats,
@@ -84,6 +85,41 @@ describe('getGroupLeaderboard', () => {
     await expect(getGroupLeaderboard('g1')).rejects.toMatchObject({
       message: 'RLS violation',
     });
+  });
+});
+
+describe('getGroupSessionDates', () => {
+  beforeEach(() => {
+    mockRpc.mockReset();
+  });
+
+  it('calls get_group_session_dates with alphabetical params', async () => {
+    mockRpc.mockResolvedValue({ data: [], error: null });
+    await getGroupSessionDates('group-uuid-123');
+    expect(mockRpc).toHaveBeenCalledWith('get_group_session_dates', {
+      p_from_date: null,
+      p_group_id: 'group-uuid-123',
+      p_to_date: null,
+    });
+  });
+
+  it('passes date strings when provided and maps session_date rows', async () => {
+    mockRpc.mockResolvedValue({
+      data: [{ session_date: '2026-03-01' }, { session_date: '2026-03-09' }],
+      error: null,
+    });
+    const dates = await getGroupSessionDates('g1', '2026-01-01', '2026-03-10');
+    expect(mockRpc).toHaveBeenCalledWith('get_group_session_dates', {
+      p_from_date: '2026-01-01',
+      p_group_id: 'g1',
+      p_to_date: '2026-03-10',
+    });
+    expect(dates).toEqual(['2026-03-01', '2026-03-09']);
+  });
+
+  it('returns empty array on RPC error', async () => {
+    mockRpc.mockResolvedValue({ data: null, error: { message: 'fail' } });
+    await expect(getGroupSessionDates('g1')).resolves.toEqual([]);
   });
 });
 

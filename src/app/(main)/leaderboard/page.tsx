@@ -3,8 +3,9 @@
 import Link from 'next/link';
 import { useAuth } from '@/lib/auth/AuthProvider';
 import { useGroups } from '@/hooks/useGroups';
-import { getGroupLeaderboard } from '@/lib/data/stats';
+import { getGroupLeaderboard, getGroupSessionDates } from '@/lib/data/stats';
 import { fmt } from '@/lib/calc/formatting';
+import { calcGroupStreaks } from '@/lib/calc/group-streaks';
 import { getLeaderboardStartingHand } from '@/lib/calc/leaderboard-rank';
 import { useEffect, useRef, useState } from 'react';
 import type { LeaderboardRow } from '@/lib/types';
@@ -106,12 +107,19 @@ export default function LeaderboardPage() {
   const [groupId, setGroupId] = useState<string>('');
   const [period, setPeriod] = useState<Period>('all');
   const [rows, setRows] = useState<LeaderboardRow[]>([]);
+  const [sessionDates, setSessionDates] = useState<string[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [categoryIndex, setCategoryIndex] = useState(0);
   const carouselRef = useRef<HTMLDivElement>(null);
 
   const { fromDate, toDate } = getDateRange(period);
+  const today = new Date().toISOString().slice(0, 10);
+  const streaks = calcGroupStreaks(
+    sessionDates,
+    today,
+    fromDate ? { fromDate } : undefined
+  );
 
   // Initialize group from payout calculator's persisted selection
   useEffect(() => {
@@ -136,21 +144,27 @@ export default function LeaderboardPage() {
   useEffect(() => {
     if (!user || !groupId) {
       setRows([]);
+      setSessionDates([]);
       return;
     }
     let cancelled = false;
     setLoading(true);
     setError(null);
-    getGroupLeaderboard(groupId, fromDate, toDate)
-      .then((data) => {
+    Promise.all([
+      getGroupLeaderboard(groupId, fromDate, toDate),
+      getGroupSessionDates(groupId, fromDate, toDate),
+    ])
+      .then(([data, dates]) => {
         if (!cancelled) {
           setRows(data);
+          setSessionDates(dates);
         }
       })
       .catch((e) => {
         if (!cancelled) {
           setError(e?.message ?? 'Failed to load leaderboard');
           setRows([]);
+          setSessionDates([]);
         }
       })
       .finally(() => {
@@ -325,6 +339,30 @@ export default function LeaderboardPage() {
               role="region"
               aria-label="Leaderboard by category"
             >
+              <div
+                className="leaderboard-streak-banner"
+                role="region"
+                aria-label="Group running streaks"
+              >
+                <div className="leaderboard-streak-stat">
+                  <span className="leaderboard-streak-label">Current streak</span>
+                  <span className="leaderboard-streak-value tabular-nums">
+                    {streaks.current}
+                    <span className="leaderboard-streak-unit">
+                      {streaks.current === 1 ? ' day' : ' days'}
+                    </span>
+                  </span>
+                </div>
+                <div className="leaderboard-streak-stat">
+                  <span className="leaderboard-streak-label">Longest streak</span>
+                  <span className="leaderboard-streak-value tabular-nums">
+                    {streaks.longest}
+                    <span className="leaderboard-streak-unit">
+                      {streaks.longest === 1 ? ' day' : ' days'}
+                    </span>
+                  </span>
+                </div>
+              </div>
               <div className="leaderboard-carousel-header">
                 <button
                   type="button"
