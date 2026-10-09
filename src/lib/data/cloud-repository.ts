@@ -8,6 +8,8 @@ import {
   DbGroup,
   UsualSuspect,
   SharedSessionPayload,
+  SaveOwnSessionPayload,
+  SaveOwnSessionResult,
 } from '../types';
 
 async function getCurrentUserId(): Promise<string | null> {
@@ -230,6 +232,29 @@ export const cloudRepository: Repository = {
     });
     if (error) return null;
     return typeof data === 'string' ? data : null;
+  },
+
+  async saveOwnSession(payload: SaveOwnSessionPayload): Promise<SaveOwnSessionResult | null> {
+    const { data, error } = await supabase.rpc('save_own_session', {
+      p_session_id: payload.id,
+      p_group_id: payload.group_id,
+      p_session_date: payload.session_date,
+      p_currency: payload.currency,
+      p_default_buy_in: payload.default_buy_in,
+      p_settlement_mode: payload.settlement_mode,
+      p_status: payload.status,
+      p_players: payload.players,
+    });
+    if (error || !data || typeof data !== 'object') {
+      if (error) throw error;
+      return null;
+    }
+    const parsed = data as { session_id?: string; share_code?: string };
+    if (!parsed.session_id) return null;
+    return {
+      session_id: parsed.session_id,
+      share_code: typeof parsed.share_code === 'string' ? parsed.share_code : '',
+    };
   },
 
   async getGroupByInviteCode(inviteCode: string): Promise<DbGroup | null> {

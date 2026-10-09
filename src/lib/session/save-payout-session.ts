@@ -1,8 +1,16 @@
 import { parseNum } from '@/lib/calc/formatting';
-import type { DbGamePlayer, DbGameSession, PayoutRowData, SharedSessionPayload } from '@/lib/types';
+import type {
+  DbGamePlayer,
+  DbGameSession,
+  PayoutRowData,
+  SaveOwnSessionPayload,
+  SaveOwnSessionResult,
+  SharedSessionPayload,
+} from '@/lib/types';
 
 export type SavePayoutSessionParams = {
   repo: {
+    saveOwnSession(payload: SaveOwnSessionPayload): Promise<SaveOwnSessionResult | null>;
     saveGameSession(session: DbGameSession): Promise<DbGameSession | null>;
     saveGamePlayer(player: DbGamePlayer): Promise<void>;
     getGameSession(sessionId: string): Promise<DbGameSession | null>;
@@ -25,7 +33,7 @@ export type SavePayoutSessionParams = {
 
 export type SavePayoutSessionResult =
   | { ok: true; sessionId: string; playerIds: (string | undefined)[]; shareCode: string; createdBy: string }
-  | { ok: false };
+  | { ok: false; error: string };
 
 export async function savePayoutSession(params: SavePayoutSessionParams): Promise<SavePayoutSessionResult> {
   const {
@@ -42,10 +50,11 @@ export async function savePayoutSession(params: SavePayoutSessionParams): Promis
     useSharedRpc,
     upsertSharedSession,
   } = params;
-  if (!userId || rows.length === 0) return { ok: false };
+  if (!userId || rows.length === 0) {
+    return { ok: false, error: 'Upload failed. Please try again.' };
+  }
 
   const now = new Date().toISOString();
-  const isNewSession = currentSessionId == null;
   const sessionId = currentSessionId ?? crypto.randomUUID();
 
   const nameToUserId = new Map<string, string>();
@@ -89,50 +98,29 @@ export async function savePayoutSession(params: SavePayoutSessionParams): Promis
       status,
       players: sharedPlayers,
     });
-    if (!id) return { ok: false };
+    if (!id) return { ok: false, error: 'Upload failed. Please try again.' };
     return { ok: true, sessionId: id, playerIds, shareCode, createdBy: '' };
   }
 
-  const session: DbGameSession = {
+  const saved = await repo.saveOwnSession({
     id: sessionId,
-    created_by: userId,
     group_id: selectedGroupId,
     session_date: new Date().toISOString().slice(0, 10),
     currency,
     default_buy_in: buyIn,
     settlement_mode: settlementMode,
     status,
-    share_code: '',
-    created_at: now,
-    updated_at: now,
+    players: sharedPlayers,
+  });
+  if (!saved) {
+    return { ok: false, error: 'Upload failed. Please try again.' };
+  }
+
+  return {
+    ok: true,
+    sessionId: saved.session_id,
+    playerIds,
+    shareCode: saved.share_code?.trim() || shareCode?.trim() || '',
+    createdBy: userId,
   };
-  await repo.saveGameSession(session);
-
-  for (const p of sharedPlayers) {
-    await repo.saveGamePlayer({
-      id: p.id,
-      session_id: sessionId,
-      user_id: p.user_id,
-      player_name: p.player_name,
-      buy_in: p.buy_in,
-      cash_out: p.cash_out,
-      net_result: p.net_result,
-      settled: p.settled,
-      created_at: p.created_at,
-      updated_at: now,
-    });
-  }
-
-  if (!isNewSession) {
-    const keptIds = new Set(playerIds.filter((id): id is string => id != null));
-    const existing = await repo.getGamePlayers(sessionId);
-    for (const p of existing) {
-      if (!keptIds.has(p.id)) await repo.deleteGamePlayer(p.id, sessionId);
-    }
-  }
-
-  const savedSession = await repo.getGameSession(sessionId);
-  const resolvedShareCode = savedSession?.share_code?.trim() || shareCode?.trim() || '';
-
-  return { ok: true, sessionId, playerIds, shareCode: resolvedShareCode, createdBy: userId };
 }

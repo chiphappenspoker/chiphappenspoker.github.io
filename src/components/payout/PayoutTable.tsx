@@ -6,6 +6,7 @@ import { useAuth } from '@/lib/auth/AuthProvider';
 import { getRepository } from '@/lib/data/sync-repository';
 import { clearQueueEntriesForSession } from '@/lib/sync/sync-queue';
 import { savePayoutSession } from '@/lib/session/save-payout-session';
+import { formatUploadError } from '@/lib/session/upload-error';
 import { getSiteOrigin, BASE_PATH } from '@/lib/constants';
 import { NavMenu } from '@/components/layout/NavMenu';
 import { IconShare } from '@/components/ui/MenuIcons';
@@ -38,6 +39,7 @@ export function PayoutTable() {
   const [endSessionConfirmOpen, setEndSessionConfirmOpen] = useState(false);
   const [endSessionModalOpen, setEndSessionModalOpen] = useState(false);
   const [uploadFailedOnEnd, setUploadFailedOnEnd] = useState(false);
+  const [uploadErrorMessage, setUploadErrorMessage] = useState('Upload failed. Check your connection.');
   /** When false, show New Session; when true (and user), show End Session. Toggles on New Session click and when End Session modal closes. */
   const [sessionInProgress, setSessionInProgress] = useState(false);
   const [usualSuspectsModalOpen, setUsualSuspectsModalOpen] = useState(false);
@@ -98,20 +100,39 @@ export function PayoutTable() {
       calc.sessionCreatedBy !== user.id
   );
 
+  /** Reserve session + player ids before network so Retry updates the same rows. */
+  const reserveSessionIds = (): { sessionId: string; playerIds: (string | undefined)[] } => {
+    const sessionId = calc.currentSessionId ?? crypto.randomUUID();
+    const playerIds = calc.rows.map((row) =>
+      row.name.trim() ? (row.dbPlayerId ?? crypto.randomUUID()) : undefined
+    );
+    calc.setSavedSession(
+      sessionId,
+      playerIds,
+      calc.sharedSessionCode ?? undefined,
+      calc.sessionCreatedBy || user?.id || undefined
+    );
+    return { sessionId, playerIds };
+  };
+
   const saveActiveSession = async (): Promise<{ sessionId: string; shareCode: string } | null> => {
     if (!user?.id || calc.rows.length === 0) return null;
     setSavingSession(true);
+    const { sessionId: reservedSessionId, playerIds: reservedPlayerIds } = reserveSessionIds();
     try {
       const repo = getRepository(true);
       const result = await savePayoutSession({
         repo,
         userId: user.id,
-        rows: calc.rows,
+        rows: calc.rows.map((row, i) => ({
+          ...row,
+          dbPlayerId: reservedPlayerIds[i] ?? row.dbPlayerId,
+        })),
         buyIn: calc.buyIn,
         currency: calc.currency,
         settlementMode: calc.settlementMode,
         selectedGroupId: calc.selectedGroupId,
-        currentSessionId: calc.currentSessionId,
+        currentSessionId: reservedSessionId,
         status: 'active',
         shareCode: calc.sharedSessionCode,
         useSharedRpc,
@@ -119,7 +140,10 @@ export function PayoutTable() {
           ? (code, payload) => repo.upsertSharedSession(code, payload)
           : undefined,
       });
-      if (!result.ok) return null;
+      if (!result.ok) {
+        showToast(result.error);
+        return null;
+      }
 
       const shareCode = result.shareCode?.trim();
       if (!shareCode) return null;
@@ -132,10 +156,7 @@ export function PayoutTable() {
       );
       return { sessionId: result.sessionId, shareCode };
     } catch (err) {
-      const message = err instanceof Error ? err.message : '';
-      if (message.includes('row-level security')) {
-        showToast('Upload blocked — check Pro status or session limit');
-      }
+      showToast(formatUploadError(err));
       return null;
     } finally {
       setSavingSession(false);
@@ -145,18 +166,23 @@ export function PayoutTable() {
   const finalizeSession = async (): Promise<boolean> => {
     if (!user?.id || calc.rows.length === 0) return false;
     const isNewSession = calc.currentSessionId == null;
+    const { sessionId: reservedSessionId, playerIds: reservedPlayerIds } = reserveSessionIds();
     setSavingSession(true);
     try {
       const repo = getRepository(true);
+      const rowsForSave = calc.rows.map((row, i) => ({
+        ...row,
+        dbPlayerId: reservedPlayerIds[i] ?? row.dbPlayerId,
+      }));
       const result = await savePayoutSession({
         repo,
         userId: user.id,
-        rows: calc.rows,
+        rows: rowsForSave,
         buyIn: calc.buyIn,
         currency: calc.currency,
         settlementMode: calc.settlementMode,
         selectedGroupId: calc.selectedGroupId,
-        currentSessionId: calc.currentSessionId,
+        currentSessionId: reservedSessionId,
         status: 'settled',
         shareCode: calc.sharedSessionCode,
         useSharedRpc,
@@ -165,7 +191,8 @@ export function PayoutTable() {
           : undefined,
       });
       if (!result.ok) {
-        showToast('Failed to save session');
+        setUploadErrorMessage(result.error);
+        showToast(result.error);
         return false;
       }
       calc.setSavedSession(
@@ -176,8 +203,10 @@ export function PayoutTable() {
       );
       showToast(isNewSession ? 'Session saved' : 'Session updated');
       return true;
-    } catch {
-      showToast('Failed to save session');
+    } catch (err) {
+      const message = formatUploadError(err);
+      setUploadErrorMessage(message);
+      showToast(message);
       return false;
     } finally {
       setSavingSession(false);
@@ -880,7 +909,7 @@ export function PayoutTable() {
                     flexWrap: 'wrap',
                   }}
                 >
-                  <span className="warn">Upload failed. Check your connection.</span>
+                  <span className="warn">{uploadErrorMessage}</span>
                   <button
                     type="button"
                     className="btn btn-secondary"

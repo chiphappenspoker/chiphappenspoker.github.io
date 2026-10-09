@@ -12,28 +12,28 @@ const baseRow: PayoutRowData = {
 };
 
 describe('savePayoutSession', () => {
-  it('saves active session via creator path', async () => {
-    const saveGameSession = vi.fn().mockResolvedValue(undefined);
-    const saveGamePlayer = vi.fn().mockResolvedValue(undefined);
-    const getGameSession = vi.fn().mockResolvedValue({
-      id: 'sess-1',
+  it('saves via atomic saveOwnSession and does not call per-row session/player writes', async () => {
+    const saveOwnSession = vi.fn().mockResolvedValue({
+      session_id: 'sess-1',
       share_code: 'abc12345',
-      created_by: 'user-1',
-      group_id: null,
-      session_date: '2026-06-10',
-      currency: 'EUR',
-      default_buy_in: '30',
-      settlement_mode: 'greedy',
-      status: 'active',
-      created_at: '',
-      updated_at: '',
     });
+    const saveGameSession = vi.fn();
+    const saveGamePlayer = vi.fn();
+    const getGameSession = vi.fn();
     const getGroupMembersWithIds = vi.fn().mockResolvedValue([]);
-    const getGamePlayers = vi.fn().mockResolvedValue([]);
+    const getGamePlayers = vi.fn();
     const deleteGamePlayer = vi.fn();
 
     const result = await savePayoutSession({
-      repo: { saveGameSession, saveGamePlayer, getGameSession, getGroupMembersWithIds, getGamePlayers, deleteGamePlayer },
+      repo: {
+        saveOwnSession,
+        saveGameSession,
+        saveGamePlayer,
+        getGameSession,
+        getGroupMembersWithIds,
+        getGamePlayers,
+        deleteGamePlayer,
+      },
       userId: 'user-1',
       rows: [baseRow],
       buyIn: '30',
@@ -49,21 +49,65 @@ describe('savePayoutSession', () => {
 
     expect(result.ok).toBe(true);
     if (!result.ok) return;
-    expect(saveGameSession).toHaveBeenCalledWith(
-      expect.objectContaining({ status: 'active', created_by: 'user-1' })
+    expect(saveOwnSession).toHaveBeenCalledWith(
+      expect.objectContaining({
+        status: 'active',
+        currency: 'EUR',
+        default_buy_in: '30',
+        players: expect.arrayContaining([
+          expect.objectContaining({ player_name: 'Alice', buy_in: 30, cash_out: 40 }),
+        ]),
+      })
     );
-    expect(result.sessionId).toBeTruthy();
+    expect(saveGameSession).not.toHaveBeenCalled();
+    expect(saveGamePlayer).not.toHaveBeenCalled();
+    expect(result.sessionId).toBe('sess-1');
+    expect(result.shareCode).toBe('abc12345');
     expect(result.createdBy).toBe('user-1');
-    if (result.ok) expect(result.shareCode).toBe('abc12345');
+  });
+
+  it('returns a typed error when saveOwnSession fails', async () => {
+    const saveOwnSession = vi.fn().mockResolvedValue(null);
+
+    const result = await savePayoutSession({
+      repo: {
+        saveOwnSession,
+        saveGameSession: vi.fn(),
+        saveGamePlayer: vi.fn(),
+        getGameSession: vi.fn(),
+        getGroupMembersWithIds: vi.fn().mockResolvedValue([]),
+        getGamePlayers: vi.fn(),
+        deleteGamePlayer: vi.fn(),
+      },
+      userId: 'user-1',
+      rows: [baseRow],
+      buyIn: '30',
+      currency: 'EUR',
+      settlementMode: 'greedy',
+      selectedGroupId: 'g1',
+      currentSessionId: 'sess-reserved',
+      status: 'settled',
+      shareCode: null,
+      useSharedRpc: false,
+    });
+
+    expect(result).toEqual({
+      ok: false,
+      error: 'Upload failed. Please try again.',
+    });
+    expect(saveOwnSession).toHaveBeenCalledWith(
+      expect.objectContaining({ id: 'sess-reserved', status: 'settled', group_id: 'g1' })
+    );
   });
 
   it('uses shared RPC when useSharedRpc is true', async () => {
     const upsertSharedSession = vi.fn().mockResolvedValue('sess-shared');
-    const saveGameSession = vi.fn();
+    const saveOwnSession = vi.fn();
 
     const result = await savePayoutSession({
       repo: {
-        saveGameSession,
+        saveOwnSession,
+        saveGameSession: vi.fn(),
         saveGamePlayer: vi.fn(),
         getGameSession: vi.fn(),
         getGroupMembersWithIds: vi.fn().mockResolvedValue([]),
@@ -93,6 +137,6 @@ describe('savePayoutSession', () => {
         ]),
       })
     );
-    expect(saveGameSession).not.toHaveBeenCalled();
+    expect(saveOwnSession).not.toHaveBeenCalled();
   });
 });

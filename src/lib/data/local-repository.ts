@@ -1,5 +1,12 @@
 import { Repository, CreateGroupParams, UpdateGroupParams, GroupMemberWithId, GameSessionsForUserFilters } from './repository';
-import { SettingsData, DbGameSession, DbGamePlayer, DbGroup } from '../types';
+import {
+  SettingsData,
+  DbGameSession,
+  DbGamePlayer,
+  DbGroup,
+  SaveOwnSessionPayload,
+  SaveOwnSessionResult,
+} from '../types';
 import { getLocalStorage, setLocalStorage } from '../storage/local-storage';
 import { SETTINGS_STORAGE_KEY, SESSIONS_STORAGE_KEY, SESSION_PLAYERS_STORAGE_KEY } from '../constants';
 import { db } from '../sync/db';
@@ -104,6 +111,45 @@ export const localRepository: Repository = {
   },
   async upsertSharedSession() {
     return null;
+  },
+  async saveOwnSession(payload: SaveOwnSessionPayload): Promise<SaveOwnSessionResult | null> {
+    const now = new Date().toISOString();
+    const shareCode =
+      (await this.getGameSession(payload.id))?.share_code?.trim() ||
+      Math.random().toString(36).slice(2, 10);
+    await this.saveGameSession({
+      id: payload.id,
+      created_by: '',
+      group_id: payload.group_id,
+      session_date: payload.session_date,
+      currency: payload.currency,
+      default_buy_in: payload.default_buy_in,
+      settlement_mode: payload.settlement_mode,
+      status: payload.status,
+      share_code: shareCode,
+      created_at: now,
+      updated_at: now,
+    });
+    const existing = await this.getGamePlayers(payload.id);
+    const kept = new Set(payload.players.map((p) => p.id));
+    for (const p of existing) {
+      if (!kept.has(p.id)) await this.deleteGamePlayer(p.id, payload.id);
+    }
+    for (const p of payload.players) {
+      await this.saveGamePlayer({
+        id: p.id,
+        session_id: payload.id,
+        user_id: p.user_id,
+        player_name: p.player_name,
+        buy_in: p.buy_in,
+        cash_out: p.cash_out,
+        net_result: p.net_result,
+        settled: p.settled,
+        created_at: p.created_at,
+        updated_at: now,
+      });
+    }
+    return { session_id: payload.id, share_code: shareCode };
   },
   async getGroupMembers() {
     return [];
