@@ -42,6 +42,7 @@ const mockCalcBase = {
 const mockUsePayoutCalculator = vi.fn(() => mockCalcBase);
 
 const mockShowToast = vi.fn();
+const mockSaveOwnSession = vi.fn();
 const mockSaveGameSession = vi.fn();
 const mockSaveGamePlayer = vi.fn();
 const mockGetGroupMembersWithIds = vi.fn(async () => []);
@@ -80,6 +81,10 @@ function setupSignedInCalc(overrides: Partial<typeof mockCalcBase> = {}) {
 }
 
 function setupRepositorySuccess() {
+  mockSaveOwnSession.mockResolvedValue({
+    session_id: 'sess-1',
+    share_code: 'abc12345',
+  });
   mockGetGameSession.mockResolvedValue({
     id: 'sess-1',
     created_by: 'user-1',
@@ -94,6 +99,7 @@ function setupRepositorySuccess() {
     updated_at: '2026-06-10T10:00:00Z',
   });
   vi.mocked(getRepository).mockReturnValue({
+    saveOwnSession: mockSaveOwnSession,
     saveGameSession: mockSaveGameSession.mockResolvedValue(undefined),
     saveGamePlayer: mockSaveGamePlayer.mockResolvedValue(undefined),
     getGroupMembersWithIds: mockGetGroupMembersWithIds,
@@ -106,8 +112,10 @@ function setupRepositorySuccess() {
 }
 
 function setupRepositoryFailure() {
+  mockSaveOwnSession.mockRejectedValue(new Error('Failed to fetch'));
   vi.mocked(getRepository).mockReturnValue({
-    saveGameSession: mockSaveGameSession.mockRejectedValue(new Error('network')),
+    saveOwnSession: mockSaveOwnSession,
+    saveGameSession: mockSaveGameSession,
     saveGamePlayer: mockSaveGamePlayer,
     getGroupMembersWithIds: mockGetGroupMembersWithIds,
     getGamePlayers: mockGetGamePlayers,
@@ -285,7 +293,7 @@ describe('PayoutTable share flow', () => {
     fireEvent.click(screen.getByRole('button', { name: /^share$/i }));
 
     await waitFor(() => {
-      expect(mockSaveGameSession).toHaveBeenCalledWith(
+      expect(mockSaveOwnSession).toHaveBeenCalledWith(
         expect.objectContaining({ status: 'active' })
       );
     });
@@ -326,7 +334,7 @@ describe('PayoutTable end session upload flow', () => {
 
     expect(screen.queryByRole('dialog', { name: /end session\?/i })).not.toBeInTheDocument();
     expect(screen.queryByTestId('settlement-panel')).not.toBeInTheDocument();
-    expect(mockSaveGameSession).not.toHaveBeenCalled();
+    expect(mockSaveOwnSession).not.toHaveBeenCalled();
   });
 
   it('uploads and opens summary without Save or Discard buttons', async () => {
@@ -336,8 +344,8 @@ describe('PayoutTable end session upload flow', () => {
     fireEvent.click(screen.getByRole('button', { name: /end & upload/i }));
 
     await waitFor(() => {
-      expect(mockSaveGameSession).toHaveBeenCalledTimes(1);
-      expect(mockSaveGameSession).toHaveBeenCalledWith(
+      expect(mockSaveOwnSession).toHaveBeenCalledTimes(1);
+      expect(mockSaveOwnSession).toHaveBeenCalledWith(
         expect.objectContaining({ status: 'settled' })
       );
     });
@@ -351,26 +359,29 @@ describe('PayoutTable end session upload flow', () => {
   });
 
   it('shows Uploading… and disables buttons while saving', async () => {
-    let resolveSave!: () => void;
-    mockSaveGameSession.mockImplementation(
-      () => new Promise<void>((resolve) => { resolveSave = resolve; })
+    let resolveSave!: (value: { session_id: string; share_code: string }) => void;
+    mockSaveOwnSession.mockImplementation(
+      () =>
+        new Promise<{ session_id: string; share_code: string }>((resolve) => {
+          resolveSave = resolve;
+        })
     );
 
     render(<PayoutTable />);
     fireEvent.click(screen.getByRole('button', { name: /end session/i }));
     fireEvent.click(screen.getByRole('button', { name: /end & upload/i }));
 
-    await waitFor(() => expect(mockSaveGameSession).toHaveBeenCalled());
+    await waitFor(() => expect(mockSaveOwnSession).toHaveBeenCalled());
     expect(screen.getByRole('button', { name: /uploading/i })).toBeDisabled();
     expect(screen.getByRole('button', { name: /^cancel$/i })).toBeDisabled();
 
     await act(async () => {
-      resolveSave();
+      resolveSave({ session_id: 'sess-1', share_code: 'abc12345' });
       await Promise.resolve();
     });
   });
 
-  it('shows retry banner when upload fails but still opens summary', async () => {
+  it('shows retry banner with specific error when upload fails but still opens summary', async () => {
     setupRepositoryFailure();
 
     render(<PayoutTable />);
@@ -378,12 +389,12 @@ describe('PayoutTable end session upload flow', () => {
     fireEvent.click(screen.getByRole('button', { name: /end & upload/i }));
 
     await waitFor(() => {
-      expect(screen.getByText(/upload failed/i)).toBeInTheDocument();
+      expect(screen.getByText(/upload failed\. check your connection/i)).toBeInTheDocument();
     });
 
     expect(screen.getByRole('button', { name: /^retry$/i })).toBeInTheDocument();
     expect(screen.getByTestId('settlement-panel')).toBeInTheDocument();
-    expect(mockShowToast).toHaveBeenCalledWith('Failed to save session');
+    expect(mockShowToast).toHaveBeenCalledWith('Upload failed. Check your connection.');
   });
 
   it('clears retry banner after successful retry', async () => {
@@ -404,8 +415,44 @@ describe('PayoutTable end session upload flow', () => {
       expect(screen.queryByText(/upload failed/i)).not.toBeInTheDocument();
     });
 
-    expect(mockSaveGameSession).toHaveBeenCalledTimes(2);
+    expect(mockSaveOwnSession).toHaveBeenCalledTimes(2);
     expect(mockShowToast).toHaveBeenLastCalledWith('Session saved');
+  });
+
+  it('reuses the reserved session id on retry after a failed upload', async () => {
+    let currentSessionId: string | null = null;
+    const setSavedSession = vi.fn((id: string) => {
+      currentSessionId = id;
+    });
+
+    mockUsePayoutCalculator.mockImplementation(() => ({
+      ...mockCalcBase,
+      get currentSessionId() {
+        return currentSessionId;
+      },
+      setSavedSession,
+      rows: [{ id: 'r1', name: 'Alice', buyIn: '50', cashOut: '50', paid: false, settled: false }],
+      isBalanced: true,
+      totalIn: 50,
+      totalOut: 50,
+      clearTable: vi.fn(),
+    }));
+
+    setupRepositoryFailure();
+    render(<PayoutTable />);
+    fireEvent.click(screen.getByRole('button', { name: /end session/i }));
+    fireEvent.click(screen.getByRole('button', { name: /end & upload/i }));
+
+    await waitFor(() => expect(mockSaveOwnSession).toHaveBeenCalledTimes(1));
+    const firstId = mockSaveOwnSession.mock.calls[0][0].id as string;
+    expect(setSavedSession).toHaveBeenCalled();
+    expect(firstId).toBeTruthy();
+
+    setupRepositorySuccess();
+    fireEvent.click(screen.getByRole('button', { name: /^retry$/i }));
+
+    await waitFor(() => expect(mockSaveOwnSession).toHaveBeenCalledTimes(2));
+    expect(mockSaveOwnSession.mock.calls[1][0].id).toBe(firstId);
   });
 
   it('keeps session in progress after closing summary when upload failed', async () => {
@@ -441,7 +488,7 @@ describe('PayoutTable end session upload flow', () => {
     fireEvent.click(screen.getByRole('button', { name: /^close$/i }));
 
     expect(screen.queryByRole('dialog', { name: /^end session$/i })).not.toBeInTheDocument();
-    expect(mockSaveGameSession).toHaveBeenCalledTimes(1);
+    expect(mockSaveOwnSession).toHaveBeenCalledTimes(1);
   });
 
   it('updates the same session when ending again after edits', async () => {
@@ -465,8 +512,9 @@ describe('PayoutTable end session upload flow', () => {
 
     fireEvent.click(screen.getByRole('button', { name: /end session/i }));
     fireEvent.click(screen.getByRole('button', { name: /end & upload/i }));
-    await waitFor(() => expect(setSavedSession).toHaveBeenCalledTimes(1));
-    const firstSessionId = setSavedSession.mock.calls[0][0] as string;
+    await waitFor(() => expect(mockSaveOwnSession).toHaveBeenCalledTimes(1));
+    const firstSessionId = mockSaveOwnSession.mock.calls[0][0].id as string;
+    expect(setSavedSession.mock.calls.some((c) => c[0] === firstSessionId)).toBe(true);
 
     fireEvent.click(screen.getByRole('button', { name: /^close$/i }));
 
@@ -487,8 +535,8 @@ describe('PayoutTable end session upload flow', () => {
     fireEvent.click(screen.getByRole('button', { name: /end session/i }));
     fireEvent.click(screen.getByRole('button', { name: /end & upload/i }));
 
-    await waitFor(() => expect(setSavedSession).toHaveBeenCalledTimes(2));
-    expect(setSavedSession.mock.calls[1][0]).toBe(firstSessionId);
+    await waitFor(() => expect(mockSaveOwnSession).toHaveBeenCalledTimes(2));
+    expect(mockSaveOwnSession.mock.calls[1][0].id).toBe(firstSessionId);
     expect(mockShowToast).toHaveBeenLastCalledWith('Session updated');
   });
 });

@@ -3,7 +3,14 @@ import { localRepository } from './local-repository';
 import { cloudRepository } from './cloud-repository';
 import { enqueue } from '../sync/sync-queue';
 import type { SettingsData } from '../types';
-import type { DbGameSession, DbGamePlayer, DbGroup, SharedSessionPayload } from '../types';
+import type {
+  DbGameSession,
+  DbGamePlayer,
+  DbGroup,
+  SharedSessionPayload,
+  SaveOwnSessionPayload,
+  SaveOwnSessionResult,
+} from '../types';
 import type { UsualSuspect } from '../types';
 import type { GroupMemberWithId, GameSessionsForUserFilters } from './repository';
 
@@ -107,6 +114,44 @@ const syncRepository: Repository = {
       for (const p of players) await localRepository.saveGamePlayer(p);
     }
     return sessionId;
+  },
+  async saveOwnSession(payload: SaveOwnSessionPayload): Promise<SaveOwnSessionResult | null> {
+    const result = await cloudRepository.saveOwnSession(payload);
+    if (!result) return null;
+    const now = new Date().toISOString();
+    await localRepository.saveGameSession({
+      id: result.session_id,
+      created_by: '',
+      group_id: payload.group_id,
+      session_date: payload.session_date,
+      currency: payload.currency,
+      default_buy_in: payload.default_buy_in,
+      settlement_mode: payload.settlement_mode,
+      status: payload.status,
+      share_code: result.share_code,
+      created_at: now,
+      updated_at: now,
+    });
+    const existing = await localRepository.getGamePlayers(result.session_id);
+    const kept = new Set(payload.players.map((p) => p.id));
+    for (const p of existing) {
+      if (!kept.has(p.id)) await localRepository.deleteGamePlayer(p.id, result.session_id);
+    }
+    for (const p of payload.players) {
+      await localRepository.saveGamePlayer({
+        id: p.id,
+        session_id: result.session_id,
+        user_id: p.user_id,
+        player_name: p.player_name,
+        buy_in: p.buy_in,
+        cash_out: p.cash_out,
+        net_result: p.net_result,
+        settled: p.settled,
+        created_at: p.created_at,
+        updated_at: now,
+      });
+    }
+    return result;
   },
   async getGroupByInviteCode(inviteCode: string): Promise<DbGroup | null> {
     return cloudRepository.getGroupByInviteCode(inviteCode);

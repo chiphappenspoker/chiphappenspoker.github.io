@@ -84,6 +84,23 @@ export interface SharedSessionPayload {
   players: SharedSessionPlayerPayload[];
 }
 
+/** Payload for atomic creator-path session save (session + players in one RPC). */
+export interface SaveOwnSessionPayload {
+  id: string;
+  group_id: string | null;
+  session_date: string;
+  currency: string;
+  default_buy_in: string;
+  settlement_mode: string;
+  status: 'active' | 'settled';
+  players: SharedSessionPlayerPayload[];
+}
+
+export interface SaveOwnSessionResult {
+  session_id: string;
+  share_code: string;
+}
+
 export interface PlayerStats {
   user_id: string;
   group_id: string | null;
